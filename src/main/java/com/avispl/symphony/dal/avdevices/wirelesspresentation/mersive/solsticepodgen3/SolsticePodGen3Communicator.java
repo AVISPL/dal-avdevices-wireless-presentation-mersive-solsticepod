@@ -9,6 +9,8 @@ import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -16,9 +18,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.IntStream;
+
+import org.springframework.util.CollectionUtils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.avispl.symphony.api.dal.control.Controller;
 import com.avispl.symphony.api.dal.dto.control.AdvancedControllableProperty;
@@ -54,19 +60,34 @@ import com.avispl.symphony.dal.util.StringUtils;
  */
 public class SolsticePodGen3Communicator extends RestCommunicator implements Monitorable, Controller {
 	/**
+	 * reentrantLock is a reentrant lock used for synchronization.
+	 */
+	private final ReentrantLock reentrantLock = new ReentrantLock();
+
+	/**
+	 * An instance of the AggregatedDeviceProcessor class used to process and aggregate device-related data.
+	 */
+	private final AggregatedDeviceProcessor aggregatedDeviceProcessor;
+
+	/**
+	 * Local cache stores data after a period of time
+	 */
+	private final Map<String, String> localCacheMapOfPropertyNameAndValue = new HashMap<>();
+
+	/**
+	 * availableTimeZones represents a list of available time zones.
+	 */
+	private final List<TimeZone> availableTimeZones = new ArrayList<>();
+
+	/**
 	 * ObjectMapper is a Jackson library object mapper used for JSON serialization and deserialization.
 	 */
-	ObjectMapper objectMapper = new ObjectMapper();
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	/**
 	 * localExtendedStatistics represents the extended statistics object.
 	 */
 	private ExtendedStatistics localExtendedStatistics;
-
-	/**
-	 * reentrantLock is a reentrant lock used for synchronization.
-	 */
-	private final ReentrantLock reentrantLock = new ReentrantLock();
 
 	/**
 	 * isEmergencyDelivery indicates whether it is an emergency delivery.
@@ -79,13 +100,9 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	private String adminPassword;
 
 	/**
-	 * An instance of the AggregatedDeviceProcessor class used to process and aggregate device-related data.
-	 */
-	private final AggregatedDeviceProcessor aggregatedDeviceProcessor;
-
-	/**
 	 * configManagement imported from the user interface
 	 */
+
 	private String configManagement;
 
 	/**
@@ -94,14 +111,16 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	private boolean isConfigManagement;
 
 	/**
-	 * Local cache stores data after a period of time
+	 * Constructs a new SolsticePodGen3Communicator instance.
+	 *
+	 * @throws IOException if an I/O error occurs.
 	 */
-	private final Map<String, String> localCacheMapOfPropertyNameAndValue = new HashMap<>();
-
-	/**
-	 * availableTimeZones represents a list of available time zones.
-	 */
-	private final List<TimeZone> availableTimeZones = new ArrayList<>();
+	public SolsticePodGen3Communicator() throws IOException {
+		super();
+		this.setPort(this.getPort());
+		Map<String, PropertiesMapping> mapping = new PropertiesMappingParser().loadYML(SolsticeConstant.FILE_MAPPING, getClass());
+		aggregatedDeviceProcessor = new AggregatedDeviceProcessor(mapping);
+	}
 
 	/**
 	 * Retrieves {@code {@link #configManagement}}
@@ -125,24 +144,30 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 * {@inheritDoc}
 	 */
 	@Override
-	protected void internalInit() throws Exception {
-		super.internalInit();
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	protected void internalDestroy() {
-		if (localExtendedStatistics != null && localExtendedStatistics.getStatistics() != null && localExtendedStatistics.getControllableProperties() != null) {
-			localExtendedStatistics.getStatistics().clear();
-			localExtendedStatistics.getControllableProperties().clear();
+	public List<Statistics> getMultipleStatistics() {
+		reentrantLock.lock();
+		try {
+			adminPassword = this.getPassword();
+			ExtendedStatistics extendedStatistics = new ExtendedStatistics();
+			Map<String, String> stats = new HashMap<>();
+			Map<String, String> controlStats = new HashMap<>();
+			List<AdvancedControllableProperty> advancedControllableProperties = new ArrayList<>();
+			if (!isEmergencyDelivery) {
+				convertConfigManagement();
+				retrieveMonitoringAndControllingData();
+				populateMonitoringAndControllingData(stats, controlStats, advancedControllableProperties);
+				if (isConfigManagement) {
+					extendedStatistics.setControllableProperties(advancedControllableProperties);
+					stats.putAll(controlStats);
+				}
+				extendedStatistics.setStatistics(stats);
+				localExtendedStatistics = extendedStatistics;
+			}
+			isEmergencyDelivery = false;
+		} finally {
+			reentrantLock.unlock();
 		}
-		if (!localCacheMapOfPropertyNameAndValue.isEmpty()) {
-			localCacheMapOfPropertyNameAndValue.clear();
-		}
-		isConfigManagement = false;
-		super.internalDestroy();
+		return Collections.singletonList(localExtendedStatistics);
 	}
 
 	/**
@@ -193,53 +218,165 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	}
 
 	/**
-	 * Constructs a new SolsticePodGen3Communicator instance.
-	 *
-	 * @throws IOException if an I/O error occurs.
-	 */
-	public SolsticePodGen3Communicator() throws IOException {
-		super();
-		this.setPort(this.getPort());
-		Map<String, PropertiesMapping> mapping = new PropertiesMappingParser().loadYML(SolsticeConstant.FILE_MAPPING, getClass());
-		aggregatedDeviceProcessor = new AggregatedDeviceProcessor(mapping);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public List<Statistics> getMultipleStatistics() {
-		reentrantLock.lock();
-		try {
-			adminPassword = this.getPassword();
-			ExtendedStatistics extendedStatistics = new ExtendedStatistics();
-			Map<String, String> stats = new HashMap<>();
-			Map<String, String> controlStats = new HashMap<>();
-			List<AdvancedControllableProperty> advancedControllableProperties = new ArrayList<>();
-			if (!isEmergencyDelivery) {
-				convertConfigManagement();
-				retrieveMonitoringAndControllingData();
-				populateMonitoringAndControllingData(stats, controlStats, advancedControllableProperties);
-				if (isConfigManagement) {
-					extendedStatistics.setControllableProperties(advancedControllableProperties);
-					stats.putAll(controlStats);
-				}
-				extendedStatistics.setStatistics(stats);
-				localExtendedStatistics = extendedStatistics;
-			}
-			isEmergencyDelivery = false;
-		} finally {
-			reentrantLock.unlock();
-		}
-		return Collections.singletonList(localExtendedStatistics);
-	}
-
-	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void controlProperty(ControllableProperty controllableProperty) {
+		reentrantLock.lock();
+		try {
+			if (localExtendedStatistics == null) {
+				return;
+			}
+			isEmergencyDelivery = true;
+			Map<String, String> stats = this.localExtendedStatistics.getStatistics();
+			List<AdvancedControllableProperty> advancedControllableProperties = this.localExtendedStatistics.getControllableProperties();
+			String value = String.valueOf(controllableProperty.getValue());
+			String property = controllableProperty.getProperty();
 
+			String hour;
+			String minute;
+			String number;
+			String propertyKey;
+			String[] propertyList = property.split(SolsticeConstant.HASH);
+			if (property.contains(SolsticeConstant.HASH)) {
+				propertyKey = propertyList[1];
+			} else {
+				propertyKey = property;
+			}
+			SolsticePropertiesList propertyItem = SolsticePropertiesList.getByName(propertyKey);
+			switch (propertyItem) {
+				case REBOOT_DEVICE:
+					break;
+				case RESTART_DEVICE:
+					break;
+				case SET_DEFAULT_BACKGROUND:
+					sendCommandSetDefaultBackground();
+					break;
+				case RESET_KEY:
+					sendCommandResetKey();
+					break;
+				case AUTO_SET_DATETIME:
+				case USE_24_HOUR_TIME_FORMAT:
+				case SCHEDULED_DAILY_REBOOT:
+				case MODERATOR_APPROVAL:
+				case SCREEN_KEY:
+				case DESKTOP_SCREEN_SHARING:
+				case APPLICATION_WINDOW_SHARING:
+				case ANDROID_MIRRORING:
+				case IOS_MIRRORING:
+				case AIRPLAY_DISCOVERY_PROXY:
+				case VIDEO_FILES_AND_IMAGES:
+				case PUBLISH_DISPLAY_NAME:
+				case BROADCAST_DISPLAY_NAME:
+					boolean status = convertNumberToBoolean(value);
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, status);
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(status));
+					break;
+				case SCREEN_KEY_ON_MAIN_SCREEN:
+				case SCREEN_KEY_ON_PRESENCE_BAR:
+				case DISPLAY_NAME_ON_MAIN_SCREEN:
+				case DISPLAY_NAME_ON_PRESENCE_BAR:
+				case HOST_IP_ADDRESS_ON_MAIN_SCREEN:
+				case HOST_IP_ADDRESS_ON_PRESENCE_BAR:
+					status = convertNumberToBoolean(value);
+					ScreenCustomizationEnum customizationEnum = ScreenCustomizationEnum.getEnumByName(propertyKey);
+					long valueRequest = changeBit(Long.parseLong(localCacheMapOfPropertyNameAndValue.get(propertyKey)), status, Integer.parseInt(customizationEnum.getValue()));
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, valueRequest);
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(valueRequest));
+					break;
+				case REBOOT_TIME_OF_DAY_HOUR:
+					minute = localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.MINUTE);
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, convertTo24hFormat(value, minute));
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
+					break;
+				case REBOOT_TIME_OF_DAY_MINUTE:
+					hour = localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.HOUR);
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, convertTo24hFormat(hour, value));
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
+					break;
+				case TIME_ZONE:
+					String zoneId = getIdByTimeZoneName(value);
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, zoneId);
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, zoneId);
+					break;
+				case LANGUAGE:
+					String languageId = EnumTypeHandler.getValueByName(LanguageEnum.class, value);
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, languageId);
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, languageId);
+					break;
+				case HDMI_OUTPUT_MODE:
+					number = EnumTypeHandler.getValueByName(HDMIOutputEnum.class, value);
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, Integer.parseInt(number));
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, number);
+					break;
+				case BROWSER_LOOK_IN:
+					number = EnumTypeHandler.getValueByName(BrowserLookInEnum.class, value);
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, Integer.parseInt(number));
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, number);
+					break;
+				case MAX_CONNECTIONS:
+				case MAX_POSTS:
+					int newValue = checkValidInput(value);
+					if (newValue < SolsticeConstant.MIN_VALUE) {
+						newValue = SolsticeConstant.MIN_VALUE;
+					}
+					if (newValue > SolsticeConstant.MAX_VALUE) {
+						newValue = SolsticeConstant.MAX_VALUE;
+					}
+					value = String.valueOf(newValue);
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, newValue);
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
+					break;
+				case AUTOMATICALLY_RESIZE_IMAGES:
+					int bytesValue = convertMPixelsToByte(value);
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, bytesValue);
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(bytesValue));
+					break;
+				case DISPLAY_NAME:
+					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, value);
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
+					break;
+				case CLIENT_QUICK_CONNECT_ACTION:
+					try {
+						JsonNode response;
+						boolean autoConnectOnClientLaunch = false;
+						boolean autoSDSOnClientLaunch = false;
+						ObjectNode valueNode = objectMapper.createObjectNode();
+						ObjectNode rootNode = objectMapper.createObjectNode();
+						if (adminPassword != null) {
+							rootNode.put(SolsticeConstant.PASSWORD, adminPassword);
+						}
+
+						if (SolsticeConstant.AUTO_CONNECT.equals(value)) {
+							autoConnectOnClientLaunch = true;
+						} else if (SolsticeConstant.AUTO_SDS.equals(value)) {
+							autoSDSOnClientLaunch = true;
+						}
+
+						valueNode.put(SolsticeConstant.AUTO_CONNECT_ON_CLIENT_LAUNCH, autoConnectOnClientLaunch);
+						valueNode.put(SolsticeConstant.AUTO_SDS_ON_CLIENT_LAUNCH, autoSDSOnClientLaunch);
+						rootNode.put(SolsticeConstant.GENERAL_CURATION, valueNode);
+						response = this.doPost(SolsticeCommand.CONFIG_COMMAND, rootNode, JsonNode.class);
+
+						if (response.has(SolsticeConstant.ERROR)) {
+							throw new IllegalArgumentException(
+									String.format("Can't control property %s with value %s. The device has responded with an error: %s", propertyKey, value, response.get(SolsticeConstant.ERROR).asText()));
+						}
+
+						updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, SolsticeConstant.LAUNCH_CLIENT_AND_AUTO_CONNECT, String.valueOf(autoConnectOnClientLaunch));
+						updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, SolsticeConstant.LAUNCH_CLIENT_AND_AUTOMATICALLY_SDS, String.valueOf(autoSDSOnClientLaunch));
+					} catch (Exception e) {
+						throw new IllegalArgumentException(String.format("Error when control property %s with value %s", propertyKey, value), e);
+					}
+					break;
+				default:
+					logger.debug(String.format("Property name %s doesn't support", propertyKey));
+			}
+			updateValueForTheControllableProperty(property, value, stats, advancedControllableProperties);
+			getMultipleStatistics();
+		} finally {
+			reentrantLock.unlock();
+		}
 	}
 
 	/**
@@ -247,12 +384,45 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	@Override
 	public void controlProperties(List<ControllableProperty> controllableProperties) {
-
+		if (CollectionUtils.isEmpty(controllableProperties)) {
+			throw new IllegalArgumentException("ControllableProperties can not be null or empty");
+		}
+		for (ControllableProperty p : controllableProperties) {
+			try {
+				controlProperty(p);
+			} catch (Exception e) {
+				logger.error(String.format("Error when control property %s", p.getProperty()), e);
+			}
+		}
 	}
 
 	@Override
 	protected void authenticate() {
 
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	protected void internalInit() throws Exception {
+		super.internalInit();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	protected void internalDestroy() {
+		if (localExtendedStatistics != null && localExtendedStatistics.getStatistics() != null && localExtendedStatistics.getControllableProperties() != null) {
+			localExtendedStatistics.getStatistics().clear();
+			localExtendedStatistics.getControllableProperties().clear();
+		}
+		if (!localCacheMapOfPropertyNameAndValue.isEmpty()) {
+			localCacheMapOfPropertyNameAndValue.clear();
+		}
+		isConfigManagement = false;
+		super.internalDestroy();
 	}
 
 	/**
@@ -271,9 +441,22 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 				localCacheMapOfPropertyNameAndValue.keySet().removeAll(item.getProperties().keySet());
 				localCacheMapOfPropertyNameAndValue.putAll(item.getProperties());
 			}
-			for (SolsticePropertiesList i : SolsticePropertiesList.values()) {
-				if (StringUtils.isNullOrEmpty(localCacheMapOfPropertyNameAndValue.get(i.getName()))) {
-					localCacheMapOfPropertyNameAndValue.put(i.getName(), SolsticeConstant.NONE);
+			String value;
+			for (SolsticePropertiesList property : SolsticePropertiesList.values()) {
+				value = localCacheMapOfPropertyNameAndValue.get(property.getName());
+				if (StringUtils.isNullOrEmpty(value)) {
+					localCacheMapOfPropertyNameAndValue.put(property.getName(), SolsticeConstant.NONE);
+					value = SolsticeConstant.NONE;
+				}
+				switch (property) {
+					case REBOOT_TIME_OF_DAY_HOUR:
+						localCacheMapOfPropertyNameAndValue.put(property.getName(), getHour(value));
+						break;
+					case REBOOT_TIME_OF_DAY_MINUTE:
+						localCacheMapOfPropertyNameAndValue.put(property.getName(), getMinutes(value));
+						break;
+					default:
+						localCacheMapOfPropertyNameAndValue.put(property.getName(), value);
 				}
 			}
 		} catch (Exception e) {
@@ -341,15 +524,28 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					case MODERATOR_APPROVAL:
 						addAdvanceControlProperties(advancedControllableProperties, controlStats, createSwitch(propertyName, convertBooleanToNumber(value), SolsticeConstant.DISABLE, SolsticeConstant.ENABLE));
 						break;
-					case REBOOT_TIME_OF_DAY:
-						if (SolsticeConstant.TRUE.equals(localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.SCHEDULE_DAILY_REBOOT))) {
-							addAdvanceControlProperties(advancedControllableProperties, controlStats, createText(propertyName, value));
+					case REBOOT_TIME_OF_DAY_MINUTE:
+						if (SolsticeConstant.TRUE.equals(localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.ACTIVE))) {
+							String[] minutes = IntStream.rangeClosed(0, 59)
+									.mapToObj(minute -> String.format(SolsticeConstant.NUMBER_FORMAT, minute))
+									.toArray(String[]::new);
+							addAdvanceControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, minutes, value));
+						}
+						break;
+					case REBOOT_TIME_OF_DAY_HOUR:
+						if (SolsticeConstant.TRUE.equals(localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.ACTIVE))) {
+							String[] hours = IntStream.rangeClosed(0, 23)
+									.mapToObj(hour -> String.format(SolsticeConstant.NUMBER_FORMAT, hour))
+									.toArray(String[]::new);
+							addAdvanceControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, hours, value));
 						}
 						break;
 					case DISPLAY_NAME:
+						addAdvanceControlProperties(advancedControllableProperties, controlStats, createText(propertyName, value));
+						break;
 					case MAX_CONNECTIONS:
 					case MAX_POSTS:
-						addAdvanceControlProperties(advancedControllableProperties, controlStats, createText(propertyName, value));
+						addAdvanceControlProperties(advancedControllableProperties, controlStats, createNumeric(propertyName, value));
 						break;
 					case HDMI_OUTPUT_MODE:
 						addAdvanceControlProperties(advancedControllableProperties, controlStats,
@@ -376,7 +572,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 						addAdvanceControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, timeZoneVales, getTimeZoneNameById(value)));
 						break;
 					case AUTOMATICALLY_RESIZE_IMAGES:
-						addAdvanceControlProperties(advancedControllableProperties, controlStats, createText(propertyName, calculateMPixels(value)));
+						addAdvanceControlProperties(advancedControllableProperties, controlStats, createNumeric(propertyName, calculateMPixels(value)));
 						break;
 					case LICENSE_STATUS:
 						stats.put(propertyName, EnumTypeHandler.getNameByValue(LicenseStatusEnum.class, value));
@@ -425,6 +621,117 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	}
 
 	/**
+	 * Sends a POST request to the Solstice Pod with the specified command, property, and value.
+	 *
+	 * @param command the command to be sent in the POST request
+	 * @param property the Solstice property associated with the value
+	 * @param value the value to be sent in the request body
+	 * @return the response received from the Solstice Pod as a JSON node
+	 * @throws Exception if an error occurs during the POST request
+	 */
+	private void sendPostRequest(String command, SolsticePropertiesList property, Object value) {
+		try {
+			JsonNode response = this.doPost(command, createBodyRequest(property.getApiGroupName(), property.getApiPropertyName(), value), JsonNode.class);
+			if (response.has(SolsticeConstant.ERROR)) {
+				throw new IllegalArgumentException(
+						String.format("Can't control property %s with value %s. The device has responded with an error: %s", property.name(), value, response.get(SolsticeConstant.ERROR).asText()));
+			}
+		} catch (Exception e) {
+			throw new IllegalArgumentException(String.format("Can't control property %s with value %s. The device has responded with an error.", property.name(), value), e);
+		}
+	}
+
+	/**
+	 * Sends a command to reset the key to the device.
+	 * If an admin password is provided, it includes the password in the request.
+	 *
+	 * @throws IllegalArgumentException if the device responds with an error or if there is an issue with the request.
+	 */
+	private void sendCommandResetKey() {
+		try {
+			String request = SolsticeCommand.RESET_KEY;
+			if (adminPassword != null) {
+				request = SolsticeCommand.RESET_KEY + "?password=" + adminPassword;
+			}
+			String response = this.doGet(request);
+			if (!SolsticeConstant.COMMAND_SUCCESSFUL.equals(response)) {
+				throw new IllegalArgumentException("Can't control property ResetKey. The device has responded with an error.");
+			}
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Can't control property ResetKey. The device has responded with an error.", e);
+		}
+	}
+
+	/**
+	 * Sends a command to set the default background to the device.
+	 * If an admin password is provided, it includes the password in the request.
+	 *
+	 * @throws IllegalArgumentException if the device responds with an error or if there is an issue with the request.
+	 */
+	private void sendCommandSetDefaultBackground() {
+		try {
+			JsonNode response;
+			if (StringUtils.isNullOrEmpty(adminPassword)) {
+				Map<String, String> params = new HashMap<>();
+				params.put(SolsticeConstant.FILE, SolsticeConstant.RESET_DEFAULT);
+				response = this.doPost(SolsticeCommand.SET_DEFAULT_BACKGROUND, params, JsonNode.class);
+			} else {
+				String jsonString = "{\"file\":\"reset default\",\"password\":\"" + adminPassword + "\"}";
+				JsonNode jsonNode = objectMapper.readTree(jsonString);
+				response = this.doPost(SolsticeCommand.SET_DEFAULT_BACKGROUND, jsonNode, JsonNode.class);
+			}
+			if (!isSuccessResponse(response)) {
+				throw new IllegalArgumentException("Can't control property SetDefaultBackground. The device has responded with an error.");
+			}
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Can't control property SetDefaultBackground. The device has responded with an error.", e);
+		}
+	}
+
+	/**
+	 * Checks if the provided JSON response represents a successful response.
+	 *
+	 * @param response The JSON response to be checked.
+	 * @return true if the response is successful, false otherwise.
+	 */
+	private boolean isSuccessResponse(JsonNode response) {
+		return response.has(SolsticeConstant.RESULT) && SolsticeConstant.SUCCESS.equals(response.get(SolsticeConstant.RESULT).asText());
+	}
+
+	/**
+	 * Creates the request body for a POST request based on the specified group name, property name, and value.
+	 *
+	 * @param groupName the name of the group associated with the property
+	 * @param propertyName the name of the property
+	 * @param value the value of the property
+	 * @return the JSON string representing the request body
+	 */
+	private String createBodyRequest(String groupName, String propertyName, Object value) {
+		ObjectNode valueNode = objectMapper.createObjectNode();
+		switch (value.getClass().getSimpleName()) {
+			case SolsticeConstant.LONG:
+				valueNode.put(propertyName, Long.parseLong(value.toString()));
+				break;
+			case SolsticeConstant.INTEGER:
+				valueNode.put(propertyName, Integer.parseInt(value.toString()));
+				break;
+			case SolsticeConstant.BOOLEAN:
+				valueNode.put(propertyName, Boolean.valueOf(value.toString()));
+				break;
+			default:
+				valueNode.put(propertyName, value.toString());
+				break;
+		}
+
+		ObjectNode rootNode = objectMapper.createObjectNode();
+		if (adminPassword != null) {
+			rootNode.put(SolsticeConstant.PASSWORD, adminPassword);
+		}
+		rootNode.put(groupName, valueNode);
+		return rootNode.toString();
+	}
+
+	/**
 	 * Retrieves and populates the list of available time zones based on the provided config response.
 	 *
 	 * @param configResponse the JSON response containing the configuration data
@@ -432,7 +739,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	private void getAllAvailableTimeZones(JsonNode configResponse) {
 		availableTimeZones.clear();
 		TimeZone timeZone;
-		JsonNode timeZonesNode = configResponse.get("m_systemCuration").get("timeZones");
+		JsonNode timeZonesNode = configResponse.get(SolsticeConstant.SYSTEM_CURATION).get(SolsticeConstant.TIME_ZONES);
 		for (JsonNode timeZoneNode : timeZonesNode) {
 			timeZone = new TimeZone(timeZoneNode.get(SolsticeConstant.ID).asText(), timeZoneNode.get(SolsticeConstant.NAME).asText(), timeZoneNode.get(SolsticeConstant.OFFSET).asInt());
 			availableTimeZones.add(timeZone);
@@ -449,6 +756,18 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 		return availableTimeZones.stream()
 				.filter(tz -> tz.getId().equals(id))
 				.findFirst().map(TimeZone::getName).orElse(SolsticeConstant.DEFAULT_TIMEZONE_NAME);
+	}
+
+	/**
+	 * Retrieves the ID of the time zone based on the provided time zone name.
+	 *
+	 * @param name the name of the time zone
+	 * @return the ID of the time zone corresponding to the given name, or a default value if not found
+	 */
+	private String getIdByTimeZoneName(String name) {
+		return availableTimeZones.stream()
+				.filter(tz -> tz.getName().equals(name))
+				.findFirst().map(TimeZone::getId).orElse(SolsticeConstant.DEFAULT_TIMEZONE_ID);
 	}
 
 	/**
@@ -487,6 +806,36 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	}
 
 	/**
+	 * Converts a measurement value in "mPixels" unit to "byte".
+	 *
+	 * @param value The measurement value in "mPixels" unit to be converted.
+	 * @return The converted value in "byte" unit.
+	 * @throws IllegalArgumentException if the input value is invalid.
+	 */
+	private int convertMPixelsToByte(String value) {
+		try {
+			return Integer.parseInt(value) * SolsticeConstant.M_PIXELS;
+		} catch (Exception e) {
+			throw new IllegalArgumentException(String.format("Can't control property with value %s", value), e);
+		}
+	}
+
+	/**
+	 * Checks if the input value is valid and converts it to an integer.
+	 *
+	 * @param value The input value to be checked and converted to an integer.
+	 * @return The converted integer value if the input is valid.
+	 * @throws IllegalArgumentException if the input value is not a valid integer.
+	 */
+	private int checkValidInput(String value) {
+		try {
+			return Integer.parseInt(value);
+		} catch (Exception e) {
+			throw new IllegalArgumentException(String.format("Can't control property with value %s. The value is invalid.", value), e);
+		}
+	}
+
+	/**
 	 * Gets the screen status based on the decimal value and the properties metric.
 	 *
 	 * @param valueDecimal the decimal value representing the screen status
@@ -506,6 +855,65 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	}
 
 	/**
+	 * Changes the status of a specific bit in a given number.
+	 *
+	 * @param number The original number in which the bit will be changed.
+	 * @param status The new status for the bit (true for 1, false for 0).
+	 * @param bitIndex The index of the bit to be changed (1-based index from the right).
+	 * @return The updated number with the specified bit changed according to the given status.
+	 */
+	private long changeBit(long number, boolean status, int bitIndex) {
+		int mask = 1 << (bitIndex - 1);
+		if (status) {
+			return number | mask;
+		} else {
+			return number & ~mask;
+		}
+	}
+
+	/**
+	 * Extracts the hour part from a time string in 24-hour format.
+	 *
+	 * @param timeString The time string in 24-hour format (e.g., "13:45").
+	 * @return The extracted hour as a formatted string with two digits (e.g., "13").
+	 */
+	private String getHour(String timeString) {
+		LocalTime localTime = LocalTime.parse(timeString, DateTimeFormatter.ofPattern(SolsticeConstant.TIME_24H_FORMAT));
+		return String.format(SolsticeConstant.NUMBER_FORMAT, localTime.getHour());
+	}
+
+	/**
+	 * Extracts the minutes part from a time string in 24-hour format.
+	 *
+	 * @param timeString The time string in 24-hour format (e.g., "13:45").
+	 * @return The extracted minutes as a formatted string with two digits (e.g., "45").
+	 */
+	private String getMinutes(String timeString) {
+		LocalTime localTime = LocalTime.parse(timeString, DateTimeFormatter.ofPattern(SolsticeConstant.TIME_24H_FORMAT));
+		return String.format(SolsticeConstant.NUMBER_FORMAT, localTime.getMinute());
+	}
+
+	/**
+	 * Converts hour and minutes values to a time string in 24-hour format.
+	 *
+	 * @param hourValue The hour value as a string (e.g., "13").
+	 * @param minutesValue The minutes value as a string (e.g., "45").
+	 * @return The time string in 24-hour format (e.g., "13:45").
+	 * @throws Exception if the input hour or minutes value is not a valid integer.
+	 */
+	private String convertTo24hFormat(String hourValue, String minutesValue) {
+		try {
+			int hour = Integer.parseInt(hourValue);
+			int minutes = Integer.parseInt(minutesValue);
+
+			LocalTime localTime = LocalTime.of(hour, minutes);
+			return localTime.format(DateTimeFormatter.ofPattern(SolsticeConstant.TIME_24H_FORMAT));
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Can't control property. The value is invalid.", e);
+		}
+	}
+
+	/**
 	 * Converts a boolean value represented as a string to a number.
 	 *
 	 * @param value the boolean value represented as a string
@@ -516,10 +924,32 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	}
 
 	/**
+	 * Converts a number represented as a string to a boolean value.
+	 *
+	 * @param value the number represented as a string
+	 * @return true if the value is equal to "1", false otherwise
+	 */
+	private boolean convertNumberToBoolean(String value) {
+		return SolsticeConstant.NUMBER_ONE.equals(value);
+	}
+
+	/**
 	 * This method is used to validate input config management from user
 	 */
 	private void convertConfigManagement() {
 		isConfigManagement = StringUtils.isNotNullOrEmpty(this.configManagement) && this.configManagement.equalsIgnoreCase("true");
+	}
+
+	/**
+	 * Update cache device data
+	 *
+	 * @param cacheMapOfPropertyNameAndValue the cacheMapOfPropertyNameAndValue are map key and value of it
+	 * @param property the key is property name
+	 * @param value the value is String value
+	 */
+	private void updateCachedDeviceData(Map<String, String> cacheMapOfPropertyNameAndValue, String property, String value) {
+		cacheMapOfPropertyNameAndValue.remove(property);
+		cacheMapOfPropertyNameAndValue.put(property, value);
 	}
 
 	/**
@@ -607,5 +1037,37 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	private AdvancedControllableProperty createText(String name, String stringValue) {
 		AdvancedControllableProperty.Text text = new AdvancedControllableProperty.Text();
 		return new AdvancedControllableProperty(name, new Date(), text, stringValue);
+	}
+
+	/**
+	 * Create numeric is control property for metric
+	 *
+	 * @param name the name of the property
+	 * @param stringValue character string
+	 * @return AdvancedControllableProperty Text instance
+	 */
+	private AdvancedControllableProperty createNumeric(String name, String stringValue) {
+		AdvancedControllableProperty.Numeric text = new AdvancedControllableProperty.Numeric();
+		return new AdvancedControllableProperty(name, new Date(), text, stringValue);
+	}
+
+	/**
+	 * Update the value for the control metric
+	 *
+	 * @param property is name of the metric
+	 * @param value the value is value of properties
+	 * @param extendedStatistics list statistics property
+	 * @param advancedControllableProperties the advancedControllableProperties is list AdvancedControllableProperties
+	 */
+	private void updateValueForTheControllableProperty(String property, String value, Map<String, String> extendedStatistics, List<AdvancedControllableProperty> advancedControllableProperties) {
+		if (!advancedControllableProperties.isEmpty()) {
+			for (AdvancedControllableProperty advancedControllableProperty : advancedControllableProperties) {
+				if (advancedControllableProperty.getName().equals(property)) {
+					extendedStatistics.put(property, value);
+					advancedControllableProperty.setValue(value);
+					break;
+				}
+			}
+		}
 	}
 }
