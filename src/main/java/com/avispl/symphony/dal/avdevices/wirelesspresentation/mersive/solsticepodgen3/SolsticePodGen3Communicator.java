@@ -102,7 +102,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	/**
 	 * configManagement imported from the user interface
 	 */
-
 	private String configManagement;
 
 	/**
@@ -245,17 +244,12 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 			}
 			SolsticePropertiesList propertyItem = SolsticePropertiesList.getByName(propertyKey);
 			switch (propertyItem) {
-				case REBOOT_DEVICE:
-					break;
-				case RESTART_DEVICE:
-					break;
 				case SET_DEFAULT_BACKGROUND:
 					sendCommandSetDefaultBackground();
 					break;
 				case RESET_KEY:
 					sendCommandResetKey();
 					break;
-				case AUTO_SET_DATETIME:
 				case USE_24_HOUR_TIME_FORMAT:
 				case SCHEDULED_DAILY_REBOOT:
 				case MODERATOR_APPROVAL:
@@ -396,9 +390,12 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	protected void authenticate() {
-
+		//Solstice Pod doesn't require API token.
 	}
 
 	/**
@@ -481,11 +478,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 			propertyName = property.getGroup().concat(property.getName());
 			if (StringUtils.isNotNullOrEmpty(value)) {
 				switch (property) {
-					case REBOOT_DEVICE:
-						addAdvanceControlProperties(advancedControllableProperties, controlStats,
-								createButton(propertyName, SolsticeConstant.REBOOT, SolsticeConstant.REBOOTING, SolsticeConstant.GRACE_PERIOD));
-						break;
-					case RESTART_DEVICE:
 					case RESET_KEY:
 						addAdvanceControlProperties(advancedControllableProperties, controlStats, createButton(propertyName, SolsticeConstant.RESTART, SolsticeConstant.RESTARTING, SolsticeConstant.GRACE_PERIOD));
 						break;
@@ -501,7 +493,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					case IOS_MIRRORING:
 					case VIDEO_FILES_AND_IMAGES:
 					case USE_24_HOUR_TIME_FORMAT:
-					case AUTO_SET_DATETIME:
 						addAdvanceControlProperties(advancedControllableProperties, controlStats, createSwitch(propertyName, convertBooleanToNumber(value), SolsticeConstant.OFF, SolsticeConstant.ON));
 						break;
 					case DISPLAY_NAME_ON_MAIN_SCREEN:
@@ -722,7 +713,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 				valueNode.put(propertyName, value.toString());
 				break;
 		}
-
 		ObjectNode rootNode = objectMapper.createObjectNode();
 		if (adminPassword != null) {
 			rootNode.put(SolsticeConstant.PASSWORD, adminPassword);

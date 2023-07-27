@@ -56,7 +56,6 @@ models:
         Language: get("m_generalCuration")?.get("language")
         TimeZone: get("m_systemCuration")?.get("timeZone")
         Use24HourTimeFormat: get("m_systemCuration")?.get("l24HourTime")
-        AutoSetDateTime: get("m_systemCuration")?.get("autoDateTime")
 
         LicenseStatus: get("m_licenseCuration")?.get("licenseStatus")
         ExpirationDate: get("m_licenseCuration")?.get("expirationDate")

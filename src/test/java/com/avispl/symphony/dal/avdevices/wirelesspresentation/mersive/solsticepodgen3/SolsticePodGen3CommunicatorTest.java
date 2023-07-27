@@ -36,6 +36,13 @@ public class SolsticePodGen3CommunicatorTest {
 		solsticePodGen3Communicator.disconnect();
 	}
 
+	/**
+	 * Unit test for the `getStatistic()` method of the `solsticePodGen3Communicator` object.
+	 * It verifies that the method returns an `ExtendedStatistics` object and checks the number
+	 * of statistics returned from the `extendedStatistic`.
+	 *
+	 * @throws Exception If an exception occurs during the test execution.
+	 */
 	@Test
 	void testCommunicatorGetStatistic() throws Exception {
 		extendedStatistic = (ExtendedStatistics) solsticePodGen3Communicator.getMultipleStatistics().get(0);
@@ -44,6 +51,13 @@ public class SolsticePodGen3CommunicatorTest {
 		Assert.assertEquals(57, statistics.size());
 	}
 
+	/**
+	 * Unit test for the `controlProperty` method of the `solsticePodGen3Communicator` object.
+	 * It verifies that the `controlProperty` method sets the specified property with the given value,
+	 * and the updated statistics are correctly reflected in the retrieved statistics.
+	 *
+	 * @throws Exception If an exception occurs during the test execution.
+	 */
 	@Test
 	void testSwitchControl() throws Exception {
 		solsticePodGen3Communicator.setConfigManagement("true");
@@ -62,6 +76,13 @@ public class SolsticePodGen3CommunicatorTest {
 		Assertions.assertEquals(value, statistics.get(property));
 	}
 
+	/**
+	 * Unit test for the `controlProperty` method of the `solsticePodGen3Communicator` object, specifically for text-based properties.
+	 * It verifies that the `controlProperty` method successfully sets the specified text-based property with the given value,
+	 * and ensures that the updated statistics and controllable property list reflect the changes made.
+	 *
+	 * @throws Exception If an exception occurs during the test execution.
+	 */
 	@Test
 	void testTextControl() throws Exception {
 		solsticePodGen3Communicator.setConfigManagement("true");
@@ -81,6 +102,13 @@ public class SolsticePodGen3CommunicatorTest {
 		advancedControllablePropertyList = extendedStatistic.getControllableProperties();
 	}
 
+	/**
+	 * Unit test for the `controlProperty` method of the `solsticePodGen3Communicator` object, specifically for dropdown-based properties.
+	 * It verifies that the `controlProperty` method successfully sets the specified dropdown-based property with the given value,
+	 * and ensures that the updated statistics reflect the changes made.
+	 *
+	 * @throws Exception If an exception occurs during the test execution.
+	 */
 	@Test
 	void testDropdownControl() throws Exception {
 		solsticePodGen3Communicator.setConfigManagement("true");

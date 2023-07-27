@@ -14,8 +14,6 @@ package com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticep
 public class SolsticeCommand {
 	public static final String CONFIG_COMMAND = "/api/config";
 	public static final String STATS_COMMAND = "/api/stats";
-	public static final String REBOOT_DEVICE = "/api/control/reboot";
-	public static final String RESTART_DEVICE = "/api/control/restart";
 	public static final String RESET_KEY = "/api/control/resetkey";
 	public static final String SET_DEFAULT_BACKGROUND = "/api/config/splashbackground";
 }

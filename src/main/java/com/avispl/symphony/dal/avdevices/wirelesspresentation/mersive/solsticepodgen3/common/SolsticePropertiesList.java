@@ -52,7 +52,6 @@ public enum SolsticePropertiesList {
 	MAX_CONNECTIONS("MaximumConnections", SolsticeConstant.RESOURCE_RESTRICTION_GROUP, true, "m_networkCuration", "maximumConnections"),
 	MAX_POSTS("MaximumPosts", SolsticeConstant.RESOURCE_RESTRICTION_GROUP, true, "m_networkCuration", "maximumPublished"),
 	AUTOMATICALLY_RESIZE_IMAGES("AutomaticallyResizeImages(MPixels)", SolsticeConstant.RESOURCE_RESTRICTION_GROUP, true, "m_networkCuration", "maximumImageSize"),
-	AUTO_SET_DATETIME("AutoSetDateTime", SolsticeConstant.EMPTY, true, "m_systemCuration", "autoDateTime"),
 	TIME_SERVER("TimeServer", SolsticeConstant.EMPTY, false, "m_systemCuration", "ntpServer"),
 	DATE("Date", SolsticeConstant.EMPTY, false, "m_systemCuration", "dateTime"),
 	TIME("Time", SolsticeConstant.EMPTY, false, "m_systemCuration", "dateTime"),
@@ -68,8 +67,6 @@ public enum SolsticePropertiesList {
 	CURRENT_LIVE_SOURCE_COUNT("CurrentLiveSourceCount", SolsticeConstant.STATISTICS_GROUP, false, "m_statistics", "m_currentLiveSourceCount"),
 	CONNECTED_USERS("ConnectedUsers", SolsticeConstant.STATISTICS_GROUP, false, "m_statistics", "m_connectedUsers"),
 	TIME_SINCE_LAST_CONNECTION_INITIALIZE("TimeSinceLastConnectionInitialize", SolsticeConstant.STATISTICS_GROUP, false, "m_statistics", "m_timeSinceLastConnectionInitialize"),
-	REBOOT_DEVICE("RebootDevice", SolsticeConstant.EMPTY, true, SolsticeConstant.EMPTY, SolsticeConstant.EMPTY),
-	RESTART_DEVICE("RestartDevice", SolsticeConstant.EMPTY, true, SolsticeConstant.EMPTY, SolsticeConstant.EMPTY),
 	RESET_KEY("ResetKey", SolsticeConstant.ACCESS_CONTROL_GROUP, true, SolsticeConstant.EMPTY, SolsticeConstant.EMPTY),
 	SET_DEFAULT_BACKGROUND("SetDefaultBackground", SolsticeConstant.APPEARANCE_GROUP, true, SolsticeConstant.EMPTY, SolsticeConstant.EMPTY),
 	;
