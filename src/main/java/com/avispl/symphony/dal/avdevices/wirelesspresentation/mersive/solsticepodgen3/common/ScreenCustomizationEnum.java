@@ -63,6 +63,6 @@ public enum ScreenCustomizationEnum {
 		return Arrays.stream(ScreenCustomizationEnum.values())
 				.filter(customizationEnum -> customizationEnum.name.equals(name))
 				.findFirst()
-				.orElse(null);
+				.orElse(DISPLAY_NAME_ON_MAIN_SCREEN);
 	}
 }

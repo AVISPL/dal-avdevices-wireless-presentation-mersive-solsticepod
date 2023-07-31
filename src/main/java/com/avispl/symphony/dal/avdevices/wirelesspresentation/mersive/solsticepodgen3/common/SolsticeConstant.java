@@ -31,11 +31,13 @@ public class SolsticeConstant {
 	public static final String ENABLE = "Enable";
 	public static final String DISABLE = "Disable";
 	public static final String TIME_ZONE = "TimeZone";
+	public static final String SESSION_KEY ="SessionKey";
 	public static final String COMMA = ",";
 	public static final String HASH = "#";
 	public static final String USE_24_HOUR_TIME_FORMAT = "Use24HourTimeFormat";
 	public static final String LAUNCH_CLIENT_AND_AUTO_CONNECT = "LaunchClientAndAutoConnect";
 	public static final String LAUNCH_CLIENT_AND_AUTOMATICALLY_SDS = "LaunchClientAndAutomaticallySDS";
+	public static final String AIR_PLAY_DISCOVERY_PROXY = "AirPlayDiscoveryProxy";
 	public static final String PASSWORD = "password";
 	public static final String NAME = "name";
 	public static final String ID = "id";
@@ -46,6 +48,7 @@ public class SolsticeConstant {
 	public static final String TRUE = "true";
 	public static final String FALSE = "false";
 	public static final String NUMBER_FORMAT = "%02d";
+	public static final String DASH = "-";
 	public static final String DATE_FORMAT = "MM/dd/yyyy";
 	public static final String TIME_12H_FORMAT = "hh:mm a";
 	public static final String TIME_24H_FORMAT = "HH:mm";
@@ -59,6 +62,8 @@ public class SolsticeConstant {
 	public static final int INVALID_SCREEN_STATUS = 2;
 	public static final int MIN_VALUE = 1;
 	public static final int MAX_VALUE = 1000;
+	public static final int MIN_RESIZE_IMAGES = 0;
+	public static final int MAX_RESIZE_IMAGES = 8;
 	public static final String NUMBER_ONE = "1";
 	public static final String AUTO_CONNECT = "Launch Client and automatically connect to Display";
 	public static final String AUTO_SDS = "Launch Client and automatically set SDS for Client";
@@ -77,4 +82,8 @@ public class SolsticeConstant {
 	public static final String RESET_DEFAULT = "reset default";
 	public static final String SYSTEM_CURATION = "m_systemCuration";
 	public static final String TIME_ZONES = "timeZones";
+	public static final String DATE = "Date";
+	public static final String TIME = "Time";
+	public static final String SCHEME_SEPARATOR = "://";
+	public static final String COLON = ":";
 }

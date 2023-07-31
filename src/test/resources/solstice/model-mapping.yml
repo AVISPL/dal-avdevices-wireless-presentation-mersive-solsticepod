@@ -7,7 +7,7 @@ models:
         deviceId: get("m_licenseCuration")?.get("fulfillmentId")
       properties:
         DisplayId: get("m_displayId")
-        IPv4: get("m_displayInformation")?.get("m_ipv4")
+        IP: get("m_displayInformation")?.get("m_ipv4")
         ServerVersion: get("m_serverVersion")
         ProductName: get("m_productName")
         ProductVariant: get("m_productVariant")

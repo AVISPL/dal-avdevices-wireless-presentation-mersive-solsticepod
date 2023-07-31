@@ -16,7 +16,7 @@ import java.util.Optional;
  */
 public enum SolsticePropertiesList {
 	DISPLAY_ID("DisplayId", SolsticeConstant.EMPTY, false, SolsticeConstant.EMPTY, "m_displayId"),
-	IPV4("IPv4", SolsticeConstant.EMPTY, false, "m_displayInformation", "m_ipv4"),
+	IPV4("IP", SolsticeConstant.EMPTY, false, "m_displayInformation", "m_ipv4"),
 	SERVER_VERSION("ServerVersion", SolsticeConstant.EMPTY, false, SolsticeConstant.EMPTY, "m_serverVersion"),
 	PRODUCT_NAME("ProductName", SolsticeConstant.EMPTY, false, SolsticeConstant.EMPTY, "m_productName"),
 	PRODUCT_VARIANT("ProductVariant", SolsticeConstant.EMPTY, false, SolsticeConstant.EMPTY, "m_productVariant"),

@@ -15,7 +15,15 @@ import org.junit.jupiter.api.Test;
 import com.avispl.symphony.api.dal.dto.control.AdvancedControllableProperty;
 import com.avispl.symphony.api.dal.dto.control.ControllableProperty;
 import com.avispl.symphony.api.dal.dto.monitor.ExtendedStatistics;
+import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.SolsticeConstant;
 
+/**
+ * SolsticePodGen3CommunicatorTest
+ *
+ * @author Harry / Symphony Dev Team<br>
+ * Created on 6/8/2023
+ * @since 1.0.0
+ */
 public class SolsticePodGen3CommunicatorTest {
 	private ExtendedStatistics extendedStatistic;
 	private SolsticePodGen3Communicator solsticePodGen3Communicator;
@@ -23,7 +31,7 @@ public class SolsticePodGen3CommunicatorTest {
 	@BeforeEach
 	void setUp() throws Exception {
 		solsticePodGen3Communicator = new SolsticePodGen3Communicator();
-		solsticePodGen3Communicator.setHost("10.25.55.100");
+		solsticePodGen3Communicator.setHost("10.34.30.100");
 		solsticePodGen3Communicator.setPassword("");
 		solsticePodGen3Communicator.setPort(80);
 		solsticePodGen3Communicator.init();
@@ -48,7 +56,7 @@ public class SolsticePodGen3CommunicatorTest {
 		extendedStatistic = (ExtendedStatistics) solsticePodGen3Communicator.getMultipleStatistics().get(0);
 		List<AdvancedControllableProperty> advancedControllablePropertyList = extendedStatistic.getControllableProperties();
 		Map<String, String> statistics = extendedStatistic.getStatistics();
-		Assert.assertEquals(57, statistics.size());
+		Assert.assertEquals(54, statistics.size());
 	}
 
 	/**
@@ -90,8 +98,8 @@ public class SolsticePodGen3CommunicatorTest {
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 		List<AdvancedControllableProperty> advancedControllablePropertyList = extendedStatistic.getControllableProperties();
 
-		String property = "RebootTimeCurrent";
-		String value = "0";
+		String property = SolsticeConstant.RESOURCE_RESTRICTION_GROUP.concat("IOSMirroring");
+		String value = "1";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
 		controllableProperty.setValue(value);
@@ -100,6 +108,7 @@ public class SolsticePodGen3CommunicatorTest {
 		extendedStatistic = (ExtendedStatistics) solsticePodGen3Communicator.getMultipleStatistics().get(0);
 		statistics = extendedStatistic.getStatistics();
 		advancedControllablePropertyList = extendedStatistic.getControllableProperties();
+		Assertions.assertEquals(value, statistics.get(property));
 	}
 
 	/**
@@ -114,9 +123,10 @@ public class SolsticePodGen3CommunicatorTest {
 		solsticePodGen3Communicator.setConfigManagement("true");
 		extendedStatistic = (ExtendedStatistics) solsticePodGen3Communicator.getMultipleStatistics().get(0);
 		Map<String, String> statistics = extendedStatistic.getStatistics();
+		List<AdvancedControllableProperty> advancedControllablePropertyList = extendedStatistic.getControllableProperties();
 
-		String property = "TimeZone";
-		String value = "GMT+7:00, Bangkok";
+		String property = "Language";
+		String value = "Japanese";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
 		controllableProperty.setValue(value);

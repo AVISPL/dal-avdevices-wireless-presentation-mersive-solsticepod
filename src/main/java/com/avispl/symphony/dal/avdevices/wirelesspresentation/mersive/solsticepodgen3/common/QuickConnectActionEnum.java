@@ -4,8 +4,6 @@
 
 package com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common;
 
-import java.util.Arrays;
-
 /**
  * Enumeration representing quick connect actions in Solstice.
  *
@@ -39,17 +37,6 @@ public enum QuickConnectActionEnum {
 	}
 
 	/**
-	 * Returns an array of all the names of the quick connect actions.
-	 *
-	 * @return an array of all the names
-	 */
-	public static String[] getAllNames() {
-		return Arrays.stream(QuickConnectActionEnum.values())
-				.map(metric -> metric.name)
-				.toArray(String[]::new);
-	}
-
-	/**
 	 * Returns the name of the quick connect action based on the provided values.
 	 *
 	 * @param autoConnectValue the value of autoConnect
@@ -58,11 +45,11 @@ public enum QuickConnectActionEnum {
 	 */
 	public static String getNameByValue(String autoConnectValue, String autoSDSValue) {
 		if (SolsticeConstant.TRUE.equals(autoConnectValue)) {
-			return AUTO_CONNECT.name;
+			return AUTO_CONNECT.getName();
 		} else if (SolsticeConstant.TRUE.equals(autoSDSValue)) {
-			return AUTO_SDS.name;
+			return AUTO_SDS.getName();
 		} else {
-			return LAUNCH_CLIENT.name;
+			return LAUNCH_CLIENT.getName();
 		}
 	}
 }
