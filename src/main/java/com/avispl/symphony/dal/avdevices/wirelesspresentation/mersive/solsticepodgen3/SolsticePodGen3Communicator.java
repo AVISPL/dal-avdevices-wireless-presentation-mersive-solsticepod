@@ -220,12 +220,12 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 			List<AdvancedControllableProperty> advancedControllableProperties = new ArrayList<>();
 			if (!isEmergencyDelivery) {
 				convertConfigManagement();
+				failedMonitor.clear();
 				retrieveStatisticsCommand();
 				retrieveConfigurationCommand();
 				if (failedMonitor.size() == SolsticeConstant.NO_OF_MONITORING_COMMAND) {
 					StringBuilder stringBuilder = new StringBuilder();
 					stringBuilder.append(failedMonitor.get(SolsticeCommand.STATS_COMMAND)).append(failedMonitor.get(SolsticeCommand.CONFIG_COMMAND));
-					failedMonitor.clear();
 					throw new ResourceNotReachableException("Get monitoring data failed: " + stringBuilder);
 				}
 				updateLocalCaching();
@@ -272,9 +272,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					break;
 				case RESET_KEY:
 					sendCommandResetKey();
-
 					retrieveConfigurationCommand();
-					retrieveStatisticsCommand();
 					updateLocalCaching();
 					stats.put(SolsticeConstant.ACCESS_CONTROL_GROUP.concat(SolsticeConstant.SESSION_KEY), localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.SESSION_KEY));
 					break;
@@ -405,31 +403,26 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
 					break;
 				case CLIENT_QUICK_CONNECT_ACTION:
-					try {
-						boolean autoConnectOnClientLaunch = false;
-						boolean autoSDSOnClientLaunch = false;
-						ObjectNode valueNode = objectMapper.createObjectNode();
-						ObjectNode rootNode = objectMapper.createObjectNode();
-						if (this.getPassword() != null) {
-							rootNode.put(SolsticeConstant.PASSWORD, this.getPassword());
-						}
-
-						if (SolsticeConstant.AUTO_CONNECT.equals(value)) {
-							autoConnectOnClientLaunch = true;
-						} else if (SolsticeConstant.AUTO_SDS.equals(value)) {
-							autoSDSOnClientLaunch = true;
-						}
-
-						valueNode.put(SolsticeConstant.AUTO_CONNECT_ON_CLIENT_LAUNCH, autoConnectOnClientLaunch);
-						valueNode.put(SolsticeConstant.AUTO_SDS_ON_CLIENT_LAUNCH, autoSDSOnClientLaunch);
-						rootNode.put(SolsticeConstant.GENERAL_CURATION, valueNode);
-						sendCommandClientQuickConnectAction(rootNode);
-
-						updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, SolsticeConstant.LAUNCH_CLIENT_AND_AUTO_CONNECT, String.valueOf(autoConnectOnClientLaunch));
-						updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, SolsticeConstant.LAUNCH_CLIENT_AND_AUTOMATICALLY_SDS, String.valueOf(autoSDSOnClientLaunch));
-					} catch (Exception e) {
-						throw new IllegalArgumentException(String.format("Error when control property %s with value %s", propertyKey, value), e);
+					boolean autoConnectOnClientLaunch = false;
+					boolean autoSDSOnClientLaunch = false;
+					ObjectNode valueNode = objectMapper.createObjectNode();
+					ObjectNode rootNode = objectMapper.createObjectNode();
+					if (this.getPassword() != null) {
+						rootNode.put(SolsticeConstant.PASSWORD, this.getPassword());
 					}
+
+					if (SolsticeConstant.AUTO_CONNECT.equals(value)) {
+						autoConnectOnClientLaunch = true;
+					} else if (SolsticeConstant.AUTO_SDS.equals(value)) {
+						autoSDSOnClientLaunch = true;
+					}
+
+					valueNode.put(SolsticeConstant.AUTO_CONNECT_ON_CLIENT_LAUNCH, autoConnectOnClientLaunch);
+					valueNode.put(SolsticeConstant.AUTO_SDS_ON_CLIENT_LAUNCH, autoSDSOnClientLaunch);
+					rootNode.put(SolsticeConstant.GENERAL_CURATION, valueNode);
+					sendCommandClientQuickConnectAction(rootNode);
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, SolsticeConstant.LAUNCH_CLIENT_AND_AUTO_CONNECT, String.valueOf(autoConnectOnClientLaunch));
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, SolsticeConstant.LAUNCH_CLIENT_AND_AUTOMATICALLY_SDS, String.valueOf(autoSDSOnClientLaunch));
 					break;
 				default:
 					logger.debug(String.format("Property name %s doesn't support", propertyKey));
@@ -512,6 +505,9 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	@Override
 	protected void internalInit() throws Exception {
+		if (logger.isDebugEnabled()) {
+			logger.debug("Internal init is called.");
+		}
 		super.internalInit();
 	}
 
@@ -581,7 +577,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 		try {
 			configResponse = doGet(SolsticeCommand.CONFIG_COMMAND, JsonNode.class);
 		} catch (Exception e) {
-			failedMonitor.remove(SolsticeCommand.CONFIG_COMMAND);
 			failedMonitor.put(SolsticeCommand.CONFIG_COMMAND, e.getMessage());
 			logger.error("Error when retrieve configuration command", e);
 		}
@@ -599,7 +594,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 		} catch (FailedLoginException e) {
 			throw new ResourceNotReachableException("Failed to login, please check the password", e);
 		} catch (Exception e) {
-			failedMonitor.remove(SolsticeCommand.STATS_COMMAND);
 			failedMonitor.put(SolsticeCommand.STATS_COMMAND, e.getMessage());
 			logger.error("Error when retrieve statistics command", e);
 		}
@@ -802,11 +796,15 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 * @throws Exception If an error occurs during the POST request or JSON parsing.
 	 * @throws IllegalArgumentException If the device responds with an error message.
 	 */
-	private void sendCommandClientQuickConnectAction(JsonNode rootNode) throws Exception {
-		JsonNode response = this.doPost(SolsticeCommand.CONFIG_COMMAND, rootNode, JsonNode.class);
-		if (response.has(SolsticeConstant.ERROR)) {
-			throw new IllegalArgumentException(
-					String.format("The device has responded with an error: %s", response.get(SolsticeConstant.ERROR).asText()));
+	private void sendCommandClientQuickConnectAction(JsonNode rootNode) {
+		try {
+			JsonNode response = this.doPost(SolsticeCommand.CONFIG_COMMAND, rootNode, JsonNode.class);
+			if (response.has(SolsticeConstant.ERROR)) {
+				throw new IllegalArgumentException(
+						String.format("The device has responded with an error: %s", response.get(SolsticeConstant.ERROR).asText()));
+			}
+		} catch (Exception e) {
+			throw new IllegalArgumentException(String.format("Error when control property Client Quick Connect Action: %s", e.getMessage()), e);
 		}
 	}
 

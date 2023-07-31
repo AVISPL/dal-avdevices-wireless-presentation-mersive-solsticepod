@@ -28,7 +28,7 @@ import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepo
  * @since 1.0.0
  */
 public class SolsticePodGen3CommunicatorTest {
-	public ExtendedStatistics extendedStatistic;
+	static ExtendedStatistics extendedStatistic;
 	static SolsticePodGen3Communicator solsticePodGen3Communicator;
 
 	@BeforeEach
@@ -51,8 +51,6 @@ public class SolsticePodGen3CommunicatorTest {
 	 * Unit test for the `getStatistic()` method of the `solsticePodGen3Communicator` object.
 	 * It verifies that the method returns an `ExtendedStatistics` object and checks the number
 	 * of statistics returned from the `extendedStatistic`.
-	 *
-	 * @throws Exception If an exception occurs during the test execution.
 	 */
 	@Test
 	void testCommunicatorGetStatistic() throws Exception {
@@ -83,8 +81,6 @@ public class SolsticePodGen3CommunicatorTest {
 	 * Unit test for the `controlProperty` method of the `solsticePodGen3Communicator` object.
 	 * It verifies that the `controlProperty` method sets the specified property with the given value,
 	 * and the updated statistics are correctly reflected in the retrieved statistics.
-	 *
-	 * @throws Exception If an exception occurs during the test execution.
 	 */
 	@Test
 	void testSwitchControl() throws Exception {
@@ -108,8 +104,6 @@ public class SolsticePodGen3CommunicatorTest {
 	 * Unit test for the `controlProperty` method of the `solsticePodGen3Communicator` object, specifically for text-based properties.
 	 * It verifies that the `controlProperty` method successfully sets the specified text-based property with the given value,
 	 * and ensures that the updated statistics and controllable property list reflect the changes made.
-	 *
-	 * @throws Exception If an exception occurs during the test execution.
 	 */
 	@Test
 	void testTextControl() throws Exception {
@@ -135,8 +129,6 @@ public class SolsticePodGen3CommunicatorTest {
 	 * Unit test for the `controlProperty` method of the `solsticePodGen3Communicator` object, specifically for dropdown-based properties.
 	 * It verifies that the `controlProperty` method successfully sets the specified dropdown-based property with the given value,
 	 * and ensures that the updated statistics reflect the changes made.
-	 *
-	 * @throws Exception If an exception occurs during the test execution.
 	 */
 	@Test
 	void testDropdownControl() throws Exception {
