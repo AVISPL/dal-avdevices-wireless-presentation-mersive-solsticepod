@@ -74,7 +74,7 @@ public class SolsticeConstant {
 	public static final String GENERAL_CURATION = "m_generalCuration";
 	public static final String SUCCESS = "Success";
 	public static final String MINUTE = "Minute";
-	public static final String RESULT = "Result";
+	public static final String RESULT = "result";
 	public static final String HOUR = "Hour";
 	public static final String LONG = "Long";
 	public static final String INTEGER = "Integer";
@@ -87,4 +87,5 @@ public class SolsticeConstant {
 	public static final String TIME = "Time";
 	public static final String SCHEME_SEPARATOR = "://";
 	public static final String COLON = ":";
+	public static final String PASSWORD_REQUEST_PARAM = "?password=";
 }

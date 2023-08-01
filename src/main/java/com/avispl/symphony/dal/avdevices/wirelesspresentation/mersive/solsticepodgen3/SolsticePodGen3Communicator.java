@@ -155,7 +155,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	/**
 	 * count the failed command
 	 */
-	private Map<String, String> failedMonitor = new HashMap<>();
+	private final Map<String, String> failedMonitor = new HashMap<>();
 
 	/**
 	 * localExtendedStatistics represents the extended statistics object.
@@ -184,7 +184,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	public SolsticePodGen3Communicator() throws IOException {
 		super();
-		this.setPort(this.getPort());
 		Map<String, PropertiesMapping> mapping = new PropertiesMappingParser().loadYML(SolsticeConstant.FILE_MAPPING, getClass());
 		aggregatedDeviceProcessor = new AggregatedDeviceProcessor(mapping);
 	}
@@ -563,19 +562,19 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 				}
 			}
 		} catch (Exception e) {
-			logger.error("Error while retrieve data: " + e);
+			logger.error("Error while retrieve data", e);
 			localCacheMapOfPropertyNameAndValue.clear();
 		}
 	}
 
 	/**
 	 * Retrieves the configuration command from the API and stores the JSON response in the 'configResponse' field.
-	 *
-	 * Throws 'ResourceNotReachableException' if login fails and logs other exceptions.
+	 * Throws Exception if login fails and logs other exceptions.
 	 */
 	private void retrieveConfigurationCommand() {
 		try {
-			configResponse = doGet(SolsticeCommand.CONFIG_COMMAND, JsonNode.class);
+			String request = SolsticeCommand.CONFIG_COMMAND + (StringUtils.isNotNullOrEmpty(this.getPassword()) ? SolsticeConstant.PASSWORD_REQUEST_PARAM + this.getPassword() : SolsticeConstant.EMPTY);
+			configResponse = doGet(request, JsonNode.class);
 		} catch (Exception e) {
 			failedMonitor.put(SolsticeCommand.CONFIG_COMMAND, e.getMessage());
 			logger.error("Error when retrieve configuration command", e);
@@ -584,12 +583,11 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 
 	/**
 	 * Retrieves the statistics command from the API and stores the JSON response in the 'statisticResponse' field.
-	 *
-	 * Throws 'ResourceNotReachableException' if login fails and logs other exceptions.
+	 * Throws Exception if login fails and logs other exceptions.
 	 */
 	private void retrieveStatisticsCommand() {
 		try {
-			String request = SolsticeCommand.STATS_COMMAND + (StringUtils.isNotNullOrEmpty(this.getPassword()) ? "?password=" + this.getPassword() : SolsticeConstant.EMPTY);
+			String request = SolsticeCommand.STATS_COMMAND + (StringUtils.isNotNullOrEmpty(this.getPassword()) ? SolsticeConstant.PASSWORD_REQUEST_PARAM + this.getPassword() : SolsticeConstant.EMPTY);
 			statisticResponse = doGet(request, JsonNode.class);
 		} catch (FailedLoginException e) {
 			throw new ResourceNotReachableException("Failed to login, please check the password", e);
@@ -752,7 +750,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	private void sendCommandResetKey() {
 		try {
-			String request = SolsticeCommand.RESET_KEY + (this.getPassword() != null ? "?password=" + this.getPassword() : SolsticeConstant.EMPTY);
+			String request = SolsticeCommand.RESET_KEY + (this.getPassword() != null ? SolsticeConstant.PASSWORD_REQUEST_PARAM + this.getPassword() : SolsticeConstant.EMPTY);
 			String response = this.doGet(request);
 			if (!SolsticeConstant.COMMAND_SUCCESSFUL.equals(response)) {
 				throw new IllegalArgumentException("The device has responded with an error.");
@@ -770,16 +768,12 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	private void sendCommandSetDefaultBackground() {
 		try {
-			JsonNode response;
-			if (StringUtils.isNullOrEmpty(this.getPassword())) {
-				Map<String, String> params = new HashMap<>();
-				params.put(SolsticeConstant.FILE, SolsticeConstant.RESET_DEFAULT);
-				response = this.doPost(SolsticeCommand.SET_DEFAULT_BACKGROUND, params, JsonNode.class);
-			} else {
-				String jsonString = "{\"file\":\"reset default\",\"password\":\"" + this.getPassword() + "\"}";
-				JsonNode jsonNode = objectMapper.readTree(jsonString);
-				response = this.doPost(SolsticeCommand.SET_DEFAULT_BACKGROUND, jsonNode, JsonNode.class);
+			Map<String, String> params = new HashMap<>();
+			params.put(SolsticeConstant.FILE, SolsticeConstant.RESET_DEFAULT);
+			if (StringUtils.isNotNullOrEmpty(this.getPassword())) {
+				params.put(SolsticeConstant.PASSWORD, this.getPassword());
 			}
+			JsonNode response = this.doPost(SolsticeCommand.SET_DEFAULT_BACKGROUND, params, JsonNode.class);
 			if (!isSuccessResponse(response)) {
 				throw new IllegalArgumentException("Can't control property SetDefaultBackground. The device has responded with an error.");
 			}
@@ -995,7 +989,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 			char firstBit = binary.charAt(binary.length() - bit);
 			return Character.getNumericValue(firstBit);
 		} catch (Exception e) {
-			logger.error("Error when convert decimal to binary " + e);
+			logger.error("Error when convert decimal to binary.", e);
 			return SolsticeConstant.INVALID_SCREEN_STATUS;
 		}
 	}
