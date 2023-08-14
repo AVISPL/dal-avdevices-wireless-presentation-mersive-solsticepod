@@ -155,6 +155,16 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	private JsonNode statisticResponse;
 
 	/**
+	 * include hour value array.
+	 */
+	private String[] hoursValueArray;
+
+	/**
+	 * include minute value array.
+	 */
+	private String[] minutesValueArray;
+
+	/**
 	 * count the failed command
 	 */
 	private final Map<String, String> failedMonitor = new HashMap<>();
@@ -301,11 +311,17 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, status);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(status));
 					if (status) {
+						if (minutesValueArray == null) {
+							minutesValueArray = createArrayNumber(0, 59);
+						}
+						if (hoursValueArray == null) {
+							hoursValueArray = createArrayNumber(0, 23);
+						}
 						addAdvanceControlProperties(advancedControllableProperties, stats,
-								createDropdown(SolsticeConstant.REBOOT_SCHEDULING_GROUP.concat(SolsticeConstant.MINUTE), createArrayNumber(0, 59), localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.MINUTE)),
+								createDropdown(SolsticeConstant.REBOOT_SCHEDULING_GROUP.concat(SolsticeConstant.MINUTE), minutesValueArray, localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.MINUTE)),
 								value);
 						addAdvanceControlProperties(advancedControllableProperties, stats,
-								createDropdown(SolsticeConstant.REBOOT_SCHEDULING_GROUP.concat(SolsticeConstant.HOUR), createArrayNumber(0, 23), localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.HOUR)),
+								createDropdown(SolsticeConstant.REBOOT_SCHEDULING_GROUP.concat(SolsticeConstant.HOUR), hoursValueArray, localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.HOUR)),
 								value);
 					} else {
 						removeValueForTheControllableProperty(SolsticeConstant.REBOOT_SCHEDULING_GROUP.concat(SolsticeConstant.MINUTE), stats, advancedControllableProperties);
@@ -654,12 +670,18 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 						break;
 					case REBOOT_TIME_OF_DAY_MINUTE:
 						if (SolsticeConstant.TRUE.equals(localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.ACTIVE))) {
-							addAdvanceControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, createArrayNumber(0, 59), value), value);
+							if (minutesValueArray == null) {
+								minutesValueArray = createArrayNumber(0, 59);
+							}
+							addAdvanceControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, minutesValueArray, value), value);
 						}
 						break;
 					case REBOOT_TIME_OF_DAY_HOUR:
 						if (SolsticeConstant.TRUE.equals(localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.ACTIVE))) {
-							addAdvanceControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, createArrayNumber(0, 23), value), value);
+							if (hoursValueArray == null) {
+								hoursValueArray = createArrayNumber(0, 23);
+							}
+							addAdvanceControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, hoursValueArray, value), value);
 						}
 						break;
 					case DISPLAY_NAME:
