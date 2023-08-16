@@ -34,7 +34,7 @@ public class SolsticePodGen3CommunicatorTest {
 	@BeforeEach
 	void setUp() throws Exception {
 		solsticePodGen3Communicator = new SolsticePodGen3Communicator();
-		solsticePodGen3Communicator.setHost("10.34.30.100");
+		solsticePodGen3Communicator.setHost("10.25.55.100");
 		solsticePodGen3Communicator.setPassword("");
 		solsticePodGen3Communicator.setPort(80);
 		solsticePodGen3Communicator.init();
@@ -57,7 +57,7 @@ public class SolsticePodGen3CommunicatorTest {
 		extendedStatistic = (ExtendedStatistics) solsticePodGen3Communicator.getMultipleStatistics().get(0);
 		List<AdvancedControllableProperty> advancedControllablePropertyList = extendedStatistic.getControllableProperties();
 		Map<String, String> statistics = extendedStatistic.getStatistics();
-		Assert.assertEquals(54, statistics.size());
+		Assert.assertEquals(52, statistics.size());
 	}
 
 	/**
@@ -68,7 +68,7 @@ public class SolsticePodGen3CommunicatorTest {
 	@Test
 	void testCommunicatorGetStatisticIsFailedLogin() throws Exception {
 		solsticePodGen3Communicator.destroy();
-		solsticePodGen3Communicator.setHost("10.34.30.100");
+		solsticePodGen3Communicator.setHost("10.25.55.100");
 		solsticePodGen3Communicator.setPassword("aaa");
 		solsticePodGen3Communicator.setPort(80);
 		solsticePodGen3Communicator.init();

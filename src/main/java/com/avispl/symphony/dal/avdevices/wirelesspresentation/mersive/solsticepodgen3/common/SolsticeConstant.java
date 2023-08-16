@@ -22,10 +22,8 @@ public class SolsticeConstant {
 	public static final String STATISTICS_GROUP = "Statistics#";
 	public static final String REBOOT = "Reboot";
 	public static final String REBOOTING = "Rebooting";
-	public static final String RESTART = "Restart";
-	public static final String RESTARTING = "Restarting";
-	public static final String SET = "Set";
-	public static final String SETTING = "Setting";
+	public static final String RESET = "Reset";
+	public static final String RESETTING = "Resetting";
 	public static final String ON = "On";
 	public static final String OFF = "Off";
 	public static final String ENABLE = "Enable";
@@ -60,8 +58,10 @@ public class SolsticeConstant {
 	public static final String DEFAULT_TIMEZONE_ID = "America/Chicago";
 	public static final String DEFAULT_TIMEZONE_NAME = "GMT-5:00, Central Time";
 	public static final int INVALID_SCREEN_STATUS = 2;
-	public static final int MIN_VALUE = 1;
-	public static final int MAX_VALUE = 1000;
+	public static final int MIN_POSTS = 1;
+	public static final int MAX_POSTS = 1000;
+	public static final int MIN_CONNECTIONS = 1;
+	public static final int MAX_CONNECTIONS = 250;
 	public static final int MIN_RESIZE_IMAGES = 0;
 	public static final int MAX_RESIZE_IMAGES = 8;
 	public static final int NO_OF_MONITORING_COMMAND = 2;
@@ -85,7 +85,9 @@ public class SolsticeConstant {
 	public static final String TIME_ZONES = "timeZones";
 	public static final String DATE = "Date";
 	public static final String TIME = "Time";
-	public static final String SCHEME_SEPARATOR = "://";
-	public static final String COLON = ":";
+	public static final String DOT = ".";
+	public static final String DOT_REGEX = "\\.";
 	public static final String PASSWORD_REQUEST_PARAM = "?password=";
+	public static final String SCREEN_CUSTOMIZATION = "ScreenCustomization";
+	public static final long NUM_OF_MILLISECONDS_IN_HOUR = 3600000;
 }
