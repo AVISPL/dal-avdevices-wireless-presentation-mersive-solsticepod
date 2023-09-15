@@ -1,0 +1,63 @@
+models:
+  - model:
+      name: Generic
+      vendor: SolsticePodGen3
+      filter: true
+      mapping:
+        deviceId: get("m_licenseCuration")?.get("fulfillmentId")
+      properties:
+        DisplayId: get("m_displayId")
+        IP: get("m_displayInformation")?.get("m_ipv4")
+        ServerVersion: get("m_serverVersion")
+        ProductName: get("m_productName")
+        ProductVariant: get("m_productVariant")
+        ProductHardwareVersion: get("m_productHardwareVersion")
+        Port: get("m_displayInformation")?.get("m_port")
+        DeviceId: get("m_licenseCuration")?.get("fulfillmentId")
+        Active: get("m_systemCuration")?.get("scheduledRestartEnabled")
+        Hour: get("m_systemCuration")?.get("scheduledRestartTime")
+        Minute: get("m_systemCuration")?.get("scheduledRestartTime")
+
+        DisplayName: get("m_displayInformation")?.get("m_displayName")
+        SDSHost1: get("m_networkCuration")?.get("sdsHostName")
+        SDSHost2: get("m_networkCuration")?.get("sdsHostName2")
+        ScreenCustomization: get("m_networkCuration")?.get("connectionShowFlags")
+        BroadcastDisplayName: get("m_networkCuration")?.get("discoveryBroadcastEnabled")
+        PublishDisplayName: get("m_networkCuration")?.get("publishToNameServer")
+
+        HDMIOutputMode: get("m_generalCuration")?.get("hdmiOutDisplayMode")
+
+        SessionKey: get("m_authenticationCuration")?.get("sessionKey")
+        EnableScreenKey: get("m_authenticationCuration")?.get("screenKeyEnabled")
+        DisableModeratorApproval: get("m_authenticationCuration")?.get("moderatorApprovalDisabled")
+        BrowserLookIn: get("m_networkCuration")?.get("remoteViewMode")
+
+        DesktopScreenSharing: get("m_networkCuration")?.get("postTypeDesktopSupported")
+        ApplicationWindowSharing: get("m_networkCuration")?.get("postTypeApplicationWindowSupported")
+        AndroidMirroring: get("m_networkCuration")?.get("postTypeAndroidMirroringSupported")
+        IOSMirroring: get("m_networkCuration")?.get("postTypeAirPlaySupported")
+        AirPlayDiscoveryProxy: get("m_networkCuration")?.get("bonjourProxyEnabled")
+        VideoFilesAndImagesSharing: get("m_networkCuration")?.get("postTypeMediaFilesSupported")
+        MaximumConnections: get("m_networkCuration")?.get("maximumConnections")
+        MaximumPosts: get("m_networkCuration")?.get("maximumPublished")
+        AutomaticallyResizeImages(MPixels): get("m_networkCuration")?.get("maximumImageSize")
+        LaunchClientAndAutoConnect: get("m_generalCuration")?.get("autoConnectOnClientLaunch")
+        LaunchClientAndAutomaticallySDS: get("m_generalCuration")?.get("autoSDSOnClientLaunch")
+
+        TimeServer: get("m_systemCuration")?.get("ntpServer")
+        Date: get("m_systemCuration")?.get("dateTime")
+        Time: get("m_systemCuration")?.get("dateTime")
+        HostName: get("m_displayInformation")?.get("m_hostName")
+        Language: get("m_generalCuration")?.get("language")
+        TimeZone: get("m_systemCuration")?.get("timeZone")
+        Use24HourTimeFormat: get("m_systemCuration")?.get("l24HourTime")
+
+        LicenseStatus: get("m_licenseCuration")?.get("licenseStatus")
+        ExpirationDate: get("m_licenseCuration")?.get("expirationDate")
+        NumDaysToExpiration: get("m_licenseCuration")?.get("numDaysToExpiration")
+
+        CurrentPostCount: get("m_statistics")?.get("m_currentPostCount")
+        CurrentBandwidth(Mbps): get("m_statistics")?.get("m_currentBandwidth")
+        CurrentLiveSourceCount: get("m_statistics")?.get("m_currentLiveSourceCount")
+        ConnectedUsers: get("m_statistics")?.get("m_connectedUsers")
+        TimeSinceLastConnectionInitialize: get("m_statistics")?.get("m_timeSinceLastConnectionInitialize")
