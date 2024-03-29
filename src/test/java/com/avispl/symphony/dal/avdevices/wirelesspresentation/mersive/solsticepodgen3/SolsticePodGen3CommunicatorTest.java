@@ -34,9 +34,10 @@ public class SolsticePodGen3CommunicatorTest {
 	@BeforeEach
 	void setUp() throws Exception {
 		solsticePodGen3Communicator = new SolsticePodGen3Communicator();
-		solsticePodGen3Communicator.setHost("10.25.55.100");
+		solsticePodGen3Communicator.setHost("");
 		solsticePodGen3Communicator.setPassword("");
-		solsticePodGen3Communicator.setPort(80);
+		solsticePodGen3Communicator.setPort(5443);
+		solsticePodGen3Communicator.setProtocol("https");
 		solsticePodGen3Communicator.init();
 		solsticePodGen3Communicator.connect();
 		solsticePodGen3Communicator.setConfigManagement("true");

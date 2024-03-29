@@ -27,7 +27,7 @@ models:
 
         HDMIOutputMode: get("m_generalCuration")?.get("hdmiOutDisplayMode")
 
-        SessionKey: get("m_authenticationCuration")?.get("sessionKey")
+        ScreenKey: get("m_authenticationCuration")?.get("sessionKey")
         EnableScreenKey: get("m_authenticationCuration")?.get("screenKeyEnabled")
         DisableModeratorApproval: get("m_authenticationCuration")?.get("moderatorApprovalDisabled")
         BrowserLookIn: get("m_networkCuration")?.get("remoteViewMode")

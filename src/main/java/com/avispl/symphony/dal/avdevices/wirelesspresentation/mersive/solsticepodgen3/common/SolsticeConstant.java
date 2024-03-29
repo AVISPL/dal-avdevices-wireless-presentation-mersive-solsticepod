@@ -29,7 +29,7 @@ public class SolsticeConstant {
 	public static final String ENABLE = "Enable";
 	public static final String DISABLE = "Disable";
 	public static final String TIME_ZONE = "TimeZone";
-	public static final String SESSION_KEY ="SessionKey";
+	public static final String SESSION_KEY ="sessionKey";
 	public static final String COMMA = ",";
 	public static final String HASH = "#";
 	public static final String USE_24_HOUR_TIME_FORMAT = "Use24HourTimeFormat";
@@ -90,4 +90,9 @@ public class SolsticeConstant {
 	public static final String PASSWORD_REQUEST_PARAM = "?password=";
 	public static final String SCREEN_CUSTOMIZATION = "ScreenCustomization";
 	public static final long NUM_OF_MILLISECONDS_IN_HOUR = 3600000;
+	public static final String ACTIVE_ROUTING_GROUP = "ActiveRouting#";
+	public static final String AUTHENTICATION_CURATION = "m_authenticationCuration";
+	public static final String SESSION_DATA = "SessionData";
+	public static final String LICENSING = "Licensing";
+	public static final String ACCESS_TOKEN = "access_token";
 }
