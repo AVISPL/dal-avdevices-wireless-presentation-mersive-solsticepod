@@ -40,7 +40,6 @@ public enum SolsticePropertiesList {
 	HDMI_OUTPUT_MODE("HDMIOutputMode", SolsticeConstant.APPEARANCE_GROUP, true, "m_generalCuration", "hdmiOutDisplayMode"),
 	SCREEN_KEY("EnableScreenKey", SolsticeConstant.ACCESS_CONTROL_GROUP, true, "m_authenticationCuration", "screenKeyEnabled"),
 	KEY("ScreenKey", SolsticeConstant.ACCESS_CONTROL_GROUP, false, "m_authenticationCuration", "sessionKey"),
-	RESET_KEY("ResetKey", SolsticeConstant.ACCESS_CONTROL_GROUP, true, SolsticeConstant.EMPTY, SolsticeConstant.EMPTY),
 	DISABLE_MODERATOR_APPROVAL("DisableModeratorApproval", SolsticeConstant.ACCESS_CONTROL_GROUP, true, "m_authenticationCuration", "moderatorApprovalDisabled"),
 	BROWSER_LOOK_IN("BrowserLookIn", SolsticeConstant.ACCESS_CONTROL_GROUP, true, "m_networkCuration", "remoteViewMode"),
 	DESKTOP_SCREEN_SHARING("DesktopScreenSharing", SolsticeConstant.RESOURCE_RESTRICTION_GROUP, true, "m_networkCuration", "postTypeDesktopSupported"),

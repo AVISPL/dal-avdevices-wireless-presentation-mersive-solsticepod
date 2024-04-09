@@ -20,8 +20,9 @@ public enum ActiveRoutingProperty {
 	CONNECTION("NumberOfConnections", "connections", SolsticeConstant.SESSION_DATA),
 	FRAMES_PER_SECOND("FramesPerSecond", "framesPerSecond", SolsticeConstant.SESSION_DATA),
 	BYTE_PER_SECOND("BytesPerSecond", "bytesPerSecond", SolsticeConstant.SESSION_DATA),
+	SOURCE_DECORATION("SourceDecoration", "sourceDecoration", SolsticeConstant.SESSION_DATA),
 	TRIAL("Trial", "trial", SolsticeConstant.LICENSING),
-	SUBSCRIPTION("Subscription", "subscription", SolsticeConstant.LICENSING),
+	SUBSCRIPTION("SubscriptionExpiration", "subscription", SolsticeConstant.LICENSING),
 	LICENSED("Licensed", "licensed", SolsticeConstant.LICENSING),
 	;
 	private final String name;

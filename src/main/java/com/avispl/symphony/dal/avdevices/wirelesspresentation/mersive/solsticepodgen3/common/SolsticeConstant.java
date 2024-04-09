@@ -90,7 +90,7 @@ public class SolsticeConstant {
 	public static final String PASSWORD_REQUEST_PARAM = "?password=";
 	public static final String SCREEN_CUSTOMIZATION = "ScreenCustomization";
 	public static final long NUM_OF_MILLISECONDS_IN_HOUR = 3600000;
-	public static final String ACTIVE_ROUTING_GROUP = "ActiveRouting#";
+	public static final String ACTIVE_ROUTING_GROUP = "ActiveLearning#";
 	public static final String AUTHENTICATION_CURATION = "m_authenticationCuration";
 	public static final String SESSION_DATA = "SessionData";
 	public static final String LICENSING = "Licensing";

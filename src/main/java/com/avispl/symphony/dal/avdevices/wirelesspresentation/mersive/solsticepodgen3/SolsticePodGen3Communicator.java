@@ -335,10 +335,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 				case SET_DEFAULT_BACKGROUND:
 					sendCommandSetDefaultBackground();
 					break;
-				case RESET_KEY:
-					sendCommandResetKey();
-					stats.put(SolsticeConstant.ACCESS_CONTROL_GROUP + SolsticePropertiesList.KEY.getName(), getScreenKey());
-					break;
 				case USE_24_HOUR_TIME_FORMAT:
 					boolean status = convertNumberToBoolean(value);
 					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, status);
@@ -392,13 +388,8 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(status));
 					if (SolsticeConstant.NUMBER_ONE.equals(value)) {
 						stats.put(SolsticeConstant.ACCESS_CONTROL_GROUP + SolsticePropertiesList.KEY.getName(), getScreenKey());
-						addAdvanceControlProperties(advancedControllableProperties, stats,
-								createButton(SolsticeConstant.ACCESS_CONTROL_GROUP.concat(SolsticePropertiesList.RESET_KEY.getName()), SolsticeConstant.RESET, SolsticeConstant.RESETTING,
-										SolsticeConstant.GRACE_PERIOD),
-								value);
 					} else {
 						stats.remove(SolsticeConstant.ACCESS_CONTROL_GROUP + SolsticePropertiesList.KEY.getName());
-						removeValueForTheControllableProperty(SolsticeConstant.ACCESS_CONTROL_GROUP.concat(SolsticePropertiesList.RESET_KEY.getName()), stats, advancedControllableProperties);
 					}
 					break;
 				case DISABLE_MODERATOR_APPROVAL:
@@ -844,12 +835,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 						addAdvanceControlProperties(advancedControllableProperties, controlStats, createButton(propertyName, SolsticeConstant.RESET, SolsticeConstant.RESETTING, SolsticeConstant.GRACE_PERIOD),
 								value);
 						break;
-					case RESET_KEY:
-						if (SolsticeConstant.TRUE.equals(localCacheMapOfPropertyNameAndValue.get(SolsticePropertiesList.SCREEN_KEY.getName()))) {
-							addAdvanceControlProperties(advancedControllableProperties, controlStats, createButton(propertyName, SolsticeConstant.RESET, SolsticeConstant.RESETTING, SolsticeConstant.GRACE_PERIOD),
-									value);
-						}
-						break;
 					case SCHEDULED_DAILY_REBOOT:
 					case BROADCAST_DISPLAY_NAME:
 					case PUBLISH_DISPLAY_NAME:
@@ -1008,24 +993,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 			}
 		} catch (Exception e) {
 			throw new IllegalArgumentException("Can't control property SetDefaultBackground. The device has responded with an error.", e);
-		}
-	}
-
-	/**
-	 * Sends a command to reset the key to the device.
-	 * If an admin password is provided, it includes the password in the request.
-	 *
-	 * @throws IllegalArgumentException if the device responds with an error or if there is an issue with the request.
-	 */
-	private void sendCommandResetKey() {
-		try {
-			String request = String.format(SolsticeCommand.RESET_KEY, this.getHost()) + (this.getPassword() != null ? "?password=" + this.getPassword() : SolsticeConstant.EMPTY);
-			String response = this.doGet(request);
-			if (!SolsticeConstant.COMMAND_SUCCESSFUL.equals(response)) {
-				throw new IllegalArgumentException("The device has responded with an error.");
-			}
-		} catch (Exception e) {
-			throw new IllegalArgumentException("Can't control property ResetKey %s" + e.getMessage(), e);
 		}
 	}
 
