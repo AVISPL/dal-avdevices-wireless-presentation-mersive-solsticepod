@@ -198,11 +198,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	private boolean isConfigManagement;
 
 	/**
-	 * This name clearly indicates that the variable is determining whether the request should be URL encoded or not.
-	 */
-	private boolean isFormUrlEncodedRequest;
-
-	/**
 	 * token for each Active Routing request
 	 */
 	private String token;
@@ -284,7 +279,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 			if (!isEmergencyDelivery) {
 				convertConfigManagement();
 				failedMonitor.clear();
-				isFormUrlEncodedRequest = false;
 				retrieveStatisticsCommand();
 				retrieveConfigurationCommand();
 				if (failedMonitor.size() == SolsticeConstant.NO_OF_MONITORING_COMMAND) {
@@ -597,7 +591,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	@Override
 	protected HttpHeaders putExtraRequestHeaders(HttpMethod httpMethod, String uri, HttpHeaders headers) throws Exception {
-		if (isFormUrlEncodedRequest) {
+		if (uri.contains("v2/")) {
 			headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 			headers.setBearerAuth(token);
 		}
@@ -728,7 +722,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 * @throws Exception If there's an error during the retrieval or population process.
 	 */
 	private void retrieveAndPopulateActiveRouting(Map<String, String> stats) throws Exception {
-		isFormUrlEncodedRequest = true;
 		if (!checkValidApiToken()) {
 			throw new FailedLoginException("API Token cannot be null or empty, please enter valid password and username field.");
 		}
@@ -760,7 +753,6 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 				}
 			}
 		}
-		isFormUrlEncodedRequest = false;
 	}
 
 	/**
