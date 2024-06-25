@@ -153,7 +153,7 @@ public enum SolsticePropertiesList {
 	 * @return SolsticePropertiesMetric is the device metric group that want to get
 	 */
 	public static SolsticePropertiesList getByName(String name) {
-		Optional<SolsticePropertiesList> property = Arrays.stream(SolsticePropertiesList.values()).filter(group -> group.getName().equals(name)).findFirst();
+		Optional<SolsticePropertiesList> property = Arrays.stream(values()).filter(group -> group.getName().equals(name)).findFirst();
 		if (property.isPresent()) {
 			return property.get();
 		} else {

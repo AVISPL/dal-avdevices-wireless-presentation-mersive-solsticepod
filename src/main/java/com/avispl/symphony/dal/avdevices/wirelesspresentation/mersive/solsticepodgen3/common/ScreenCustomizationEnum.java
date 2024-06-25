@@ -61,7 +61,7 @@ public enum ScreenCustomizationEnum {
 	 * DISPLAY_NAME_ON_MAIN_SCREEN if no matching value is found.
 	 */
 	public static ScreenCustomizationEnum getEnumByName(String name) {
-		return Arrays.stream(ScreenCustomizationEnum.values())
+		return Arrays.stream(values())
 				.filter(customizationEnum -> customizationEnum.name.equals(name))
 				.findFirst()
 				.orElse(DISPLAY_NAME_ON_MAIN_SCREEN);

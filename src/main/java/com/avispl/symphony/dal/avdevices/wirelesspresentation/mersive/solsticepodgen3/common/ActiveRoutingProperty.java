@@ -76,7 +76,7 @@ public enum ActiveRoutingProperty {
 	 * @return A list of ActiveRoutingProperty enums matching the specified type.
 	 */
 	public static List<ActiveRoutingProperty> getListByType(String type) {
-		return Arrays.stream(ActiveRoutingProperty.values()).filter(item -> item.getType().equals(type))
+		return Arrays.stream(values()).filter(item -> item.getType().equals(type))
 				.collect(Collectors.toList());
 	}
 }
