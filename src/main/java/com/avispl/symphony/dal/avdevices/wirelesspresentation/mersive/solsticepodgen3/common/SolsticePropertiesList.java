@@ -39,6 +39,7 @@ public enum SolsticePropertiesList {
 	PUBLISH_DISPLAY_NAME("PublishDisplayName", SolsticeConstant.NAMING_AND_DISCOVERY_GROUP, true, "m_networkCuration", "publishToNameServer"),
 	HDMI_OUTPUT_MODE("HDMIOutputMode", SolsticeConstant.APPEARANCE_GROUP, true, "m_generalCuration", "hdmiOutDisplayMode"),
 	SCREEN_KEY("EnableScreenKey", SolsticeConstant.ACCESS_CONTROL_GROUP, true, "m_authenticationCuration", "screenKeyEnabled"),
+	KEY("ScreenKey", SolsticeConstant.ACCESS_CONTROL_GROUP, false, "m_authenticationCuration", "sessionKey"),
 	DISABLE_MODERATOR_APPROVAL("DisableModeratorApproval", SolsticeConstant.ACCESS_CONTROL_GROUP, true, "m_authenticationCuration", "moderatorApprovalDisabled"),
 	BROWSER_LOOK_IN("BrowserLookIn", SolsticeConstant.ACCESS_CONTROL_GROUP, true, "m_networkCuration", "remoteViewMode"),
 	DESKTOP_SCREEN_SHARING("DesktopScreenSharing", SolsticeConstant.RESOURCE_RESTRICTION_GROUP, true, "m_networkCuration", "postTypeDesktopSupported"),
@@ -152,7 +153,7 @@ public enum SolsticePropertiesList {
 	 * @return SolsticePropertiesMetric is the device metric group that want to get
 	 */
 	public static SolsticePropertiesList getByName(String name) {
-		Optional<SolsticePropertiesList> property = Arrays.stream(SolsticePropertiesList.values()).filter(group -> group.getName().equals(name)).findFirst();
+		Optional<SolsticePropertiesList> property = Arrays.stream(values()).filter(group -> group.getName().equals(name)).findFirst();
 		if (property.isPresent()) {
 			return property.get();
 		} else {

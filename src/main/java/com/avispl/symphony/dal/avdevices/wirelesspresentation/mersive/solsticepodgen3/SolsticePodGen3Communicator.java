@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -20,7 +21,12 @@ import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.IntStream;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,11 +44,13 @@ import com.avispl.symphony.api.dal.monitor.Monitorable;
 import com.avispl.symphony.dal.aggregator.parser.AggregatedDeviceProcessor;
 import com.avispl.symphony.dal.aggregator.parser.PropertiesMapping;
 import com.avispl.symphony.dal.aggregator.parser.PropertiesMappingParser;
+import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.ActiveRoutingProperty;
 import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.BrowserLookInEnum;
 import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.EnumTypeHandler;
 import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.HDMIOutputEnum;
 import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.LanguageEnum;
 import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.LicenseStatusEnum;
+import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.PingMode;
 import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.QuickConnectActionEnum;
 import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.ScreenCustomizationEnum;
 import com.avispl.symphony.dal.avdevices.wirelesspresentation.mersive.solsticepodgen3.common.SolsticeCommand;
@@ -190,6 +198,26 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	private boolean isConfigManagement;
 
 	/**
+	 * token for each Active Routing request
+	 */
+	private String token;
+
+	/**
+	 * save time get token
+	 */
+	private Long tokenExpire;
+
+	/**
+	 * time the token expires
+	 */
+	private Long expiresIn = 3000L * 1000;
+
+	/**
+	 * ping Mode for the adapter
+	 */
+	private PingMode pingMode = PingMode.ICMP;
+
+	/**
 	 * Constructs a new SolsticePodGen3Communicator instance.
 	 *
 	 * @throws IOException if an I/O error occurs.
@@ -198,6 +226,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 		super();
 		Map<String, PropertiesMapping> mapping = new PropertiesMappingParser().loadYML(SolsticeConstant.FILE_MAPPING, getClass());
 		aggregatedDeviceProcessor = new AggregatedDeviceProcessor(mapping);
+		this.setTrustAllCertificates(true);
 	}
 
 	/**
@@ -216,6 +245,24 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	public void setConfigManagement(String configManagement) {
 		this.configManagement = configManagement;
+	}
+
+	/**
+	 * Retrieves {@link #pingMode}
+	 *
+	 * @return value of {@link #pingMode}
+	 */
+	public String getPingMode() {
+		return pingMode.name();
+	}
+
+	/**
+	 * Sets {@link #pingMode} value
+	 *
+	 * @param pingMode new value of {@link #pingMode}
+	 */
+	public void setPingMode(String pingMode) {
+		this.pingMode = PingMode.ofString(pingMode);
 	}
 
 	/**
@@ -239,6 +286,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					stringBuilder.append(failedMonitor.get(SolsticeCommand.STATS_COMMAND)).append(failedMonitor.get(SolsticeCommand.CONFIG_COMMAND));
 					throw new ResourceNotReachableException("Get monitoring data failed: " + stringBuilder);
 				}
+				retrieveAndPopulateActiveRouting(stats);
 				updateLocalCaching();
 				populateMonitoringAndControllingData(stats, controlStats, advancedControllableProperties);
 				if (isConfigManagement) {
@@ -283,7 +331,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					break;
 				case USE_24_HOUR_TIME_FORMAT:
 					boolean status = convertNumberToBoolean(value);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, status);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, status);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(status));
 
 					String zone = getTimeZoneNameById(localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.TIME_ZONE)).split(SolsticeConstant.COMMA)[0];
@@ -295,7 +343,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					break;
 				case IOS_MIRRORING:
 					status = convertNumberToBoolean(value);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, status);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, status);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(status));
 					String name = SolsticeConstant.RESOURCE_RESTRICTION_GROUP.concat(SolsticeConstant.AIR_PLAY_DISCOVERY_PROXY);
 					if (status) {
@@ -308,7 +356,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					break;
 				case SCHEDULED_DAILY_REBOOT:
 					status = convertNumberToBoolean(value);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, status);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, status);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(status));
 					if (status) {
 						if (minutesValueArray == null) {
@@ -328,8 +376,17 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 						removeValueForTheControllableProperty(SolsticeConstant.REBOOT_SCHEDULING_GROUP.concat(SolsticeConstant.HOUR), stats, advancedControllableProperties);
 					}
 					break;
-				case DISABLE_MODERATOR_APPROVAL:
 				case SCREEN_KEY:
+					status = convertNumberToBoolean(value);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, status);
+					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(status));
+					if (SolsticeConstant.NUMBER_ONE.equals(value)) {
+						stats.put(SolsticeConstant.ACCESS_CONTROL_GROUP + SolsticePropertiesList.KEY.getName(), getScreenKey());
+					} else {
+						stats.remove(SolsticeConstant.ACCESS_CONTROL_GROUP + SolsticePropertiesList.KEY.getName());
+					}
+					break;
+				case DISABLE_MODERATOR_APPROVAL:
 				case DESKTOP_SCREEN_SHARING:
 				case APPLICATION_WINDOW_SHARING:
 				case ANDROID_MIRRORING:
@@ -338,7 +395,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 				case PUBLISH_DISPLAY_NAME:
 				case BROADCAST_DISPLAY_NAME:
 					status = convertNumberToBoolean(value);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, status);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, status);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, String.valueOf(status));
 					break;
 				case SCREEN_KEY_ON_MAIN_SCREEN:
@@ -350,22 +407,22 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					status = convertNumberToBoolean(value);
 					ScreenCustomizationEnum customizationEnum = ScreenCustomizationEnum.getEnumByName(propertyKey);
 					long valueRequest = changeBit(Long.parseLong(localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.SCREEN_CUSTOMIZATION)), status, Integer.parseInt(customizationEnum.getValue()));
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, valueRequest);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, valueRequest);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, SolsticeConstant.SCREEN_CUSTOMIZATION, String.valueOf(valueRequest));
 					break;
 				case REBOOT_TIME_OF_DAY_HOUR:
 					String minute = localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.MINUTE);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, convertTo24hFormat(value, minute));
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, convertTo24hFormat(value, minute));
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
 					break;
 				case REBOOT_TIME_OF_DAY_MINUTE:
 					String hour = localCacheMapOfPropertyNameAndValue.get(SolsticeConstant.HOUR);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, convertTo24hFormat(hour, value));
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, convertTo24hFormat(hour, value));
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
 					break;
 				case TIME_ZONE:
 					String zoneId = getIdByTimeZoneName(value);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, zoneId);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, zoneId);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, zoneId);
 
 					zone = getTimeZoneNameById(zoneId).split(SolsticeConstant.COMMA)[0];
@@ -378,7 +435,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					break;
 				case LANGUAGE:
 					String languageId = EnumTypeHandler.getValueByName(LanguageEnum.class, value);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, languageId);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, languageId);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, languageId);
 
 					retrieveConfigurationCommand();
@@ -390,35 +447,35 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					break;
 				case HDMI_OUTPUT_MODE:
 					String number = EnumTypeHandler.getValueByName(HDMIOutputEnum.class, value);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, Integer.parseInt(number));
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, Integer.parseInt(number));
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, number);
 					break;
 				case BROWSER_LOOK_IN:
 					number = EnumTypeHandler.getValueByName(BrowserLookInEnum.class, value);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, Integer.parseInt(number));
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, Integer.parseInt(number));
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, number);
 					break;
 				case MAX_CONNECTIONS:
 					long newValue = checkValidInput(SolsticeConstant.MIN_CONNECTIONS, SolsticeConstant.MAX_CONNECTIONS, value);
 					value = String.valueOf(newValue);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, newValue);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, newValue);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
 					break;
 				case MAX_POSTS:
 					newValue = checkValidInput(SolsticeConstant.MIN_POSTS, SolsticeConstant.MAX_POSTS, value);
 					value = String.valueOf(newValue);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, newValue);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, newValue);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
 					break;
 				case AUTOMATICALLY_RESIZE_IMAGES:
 					long bytesValue = convertMPixelsToByte(value);
 					value = String.valueOf(bytesValue);
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, bytesValue);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, bytesValue);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
 					value = calculateMPixels(value);
 					break;
 				case DISPLAY_NAME:
-					sendPostRequest(SolsticeCommand.CONFIG_COMMAND, propertyItem, value);
+					sendPostRequest(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), propertyItem, value);
 					updateCachedDeviceData(localCacheMapOfPropertyNameAndValue, propertyKey, value);
 					break;
 				case CLIENT_QUICK_CONNECT_ACTION:
@@ -478,38 +535,46 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	@Override
 	public int ping() throws Exception {
-		if (isInitialized()) {
-			long pingResultTotal = 0L;
+		if (this.pingMode == PingMode.ICMP) {
+			return super.ping();
+		} else if (this.pingMode == PingMode.TCP) {
+			if (isInitialized()) {
+				long pingResultTotal = 0L;
 
-			for (int i = 0; i < this.getPingAttempts(); i++) {
-				long startTime = System.currentTimeMillis();
+				for (int i = 0; i < this.getPingAttempts(); i++) {
+					long startTime = System.currentTimeMillis();
 
-				try (Socket puSocketConnection = new Socket(this.host, this.getPort())) {
-					puSocketConnection.setSoTimeout(this.getPingTimeout());
-					if (puSocketConnection.isConnected()) {
-						long pingResult = System.currentTimeMillis() - startTime;
-						pingResultTotal += pingResult;
-						if (this.logger.isTraceEnabled()) {
-							this.logger.trace(String.format("PING OK: Attempt #%s to connect to %s on port %s succeeded in %s ms", i + 1, host, this.getPort(), pingResult));
+					try (Socket puSocketConnection = new Socket(this.host, this.getPort())) {
+						puSocketConnection.setSoTimeout(this.getPingTimeout());
+						if (puSocketConnection.isConnected()) {
+							long pingResult = System.currentTimeMillis() - startTime;
+							pingResultTotal += pingResult;
+							if (this.logger.isTraceEnabled()) {
+								this.logger.trace(String.format("PING OK: Attempt #%s to connect to %s on port %s succeeded in %s ms", i + 1, host, this.getPort(), pingResult));
+							}
+						} else {
+							if (this.logger.isDebugEnabled()) {
+								this.logger.debug(String.format("PING DISCONNECTED: Connection to %s did not succeed within the timeout period of %sms", host, this.getPingTimeout()));
+							}
+							return this.getPingTimeout();
 						}
-					} else {
-						if (this.logger.isDebugEnabled()) {
-							logger.debug(String.format("PING DISCONNECTED: Connection to %s did not succeed within the timeout period of %sms", host, this.getPingTimeout()));
+					} catch (SocketTimeoutException | ConnectException tex) {
+						throw new RuntimeException("Socket connection timed out", tex);
+					} catch (UnknownHostException ex) {
+						throw new UnknownHostException(String.format("Connection timed out, UNKNOWN host %s", host));
+					} catch (Exception e) {
+						if (this.logger.isWarnEnabled()) {
+							this.logger.warn(String.format("PING TIMEOUT: Connection to %s did not succeed, UNKNOWN ERROR %s: ", host, e.getMessage()));
 						}
 						return this.getPingTimeout();
 					}
-				} catch (SocketTimeoutException | ConnectException tex) {
-					throw new RuntimeException("Socket connection timed out", tex);
-				} catch (Exception e) {
-					if (this.logger.isWarnEnabled()) {
-						this.logger.warn(String.format("PING TIMEOUT: Connection to %s did not succeed, UNKNOWN ERROR %s: ", host, e.getMessage()));
-					}
-					return this.getPingTimeout();
 				}
+				return Math.max(1, Math.toIntExact(pingResultTotal / this.getPingAttempts()));
+			} else {
+				throw new IllegalStateException("Cannot use device class without calling init() first");
 			}
-			return Math.max(1, Math.toIntExact(pingResultTotal / this.getPingAttempts()));
 		} else {
-			throw new IllegalStateException("Cannot use device class without calling init() first");
+			throw new IllegalArgumentException("Unknown PING Mode: " + pingMode);
 		}
 	}
 
@@ -519,6 +584,18 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	@Override
 	protected void authenticate() {
 		//Solstice Pod doesn't require API token.
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	protected HttpHeaders putExtraRequestHeaders(HttpMethod httpMethod, String uri, HttpHeaders headers) throws Exception {
+		if (uri.contains("v2/")) {
+			headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+			headers.setBearerAuth(token);
+		}
+		return headers;
 	}
 
 	/**
@@ -595,7 +672,8 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	private void retrieveConfigurationCommand() {
 		try {
-			String request = SolsticeCommand.CONFIG_COMMAND + (StringUtils.isNotNullOrEmpty(this.getPassword()) ? SolsticeConstant.PASSWORD_REQUEST_PARAM + this.getPassword() : SolsticeConstant.EMPTY);
+			String request = String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()) + (StringUtils.isNotNullOrEmpty(this.getPassword()) ? SolsticeConstant.PASSWORD_REQUEST_PARAM + this.getPassword()
+					: SolsticeConstant.EMPTY);
 			configResponse = doGet(request, JsonNode.class);
 		} catch (Exception e) {
 			failedMonitor.put(SolsticeCommand.CONFIG_COMMAND, e.getMessage());
@@ -609,7 +687,8 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	private void retrieveStatisticsCommand() {
 		try {
-			String request = SolsticeCommand.STATS_COMMAND + (StringUtils.isNotNullOrEmpty(this.getPassword()) ? SolsticeConstant.PASSWORD_REQUEST_PARAM + this.getPassword() : SolsticeConstant.EMPTY);
+			String request = String.format(SolsticeCommand.STATS_COMMAND, this.getHost()) + (StringUtils.isNotNullOrEmpty(this.getPassword()) ? SolsticeConstant.PASSWORD_REQUEST_PARAM + this.getPassword()
+					: SolsticeConstant.EMPTY);
 			statisticResponse = doGet(request, JsonNode.class);
 		} catch (FailedLoginException e) {
 			throw new ResourceNotReachableException("Failed to login, please check the password", e);
@@ -617,6 +696,116 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 			failedMonitor.put(SolsticeCommand.STATS_COMMAND, e.getMessage());
 			logger.error("Error when retrieve statistics command", e);
 		}
+	}
+
+	/**
+	 * Retrieves the session key from configuration and returns it as a string.
+	 *
+	 * @return The session key retrieved from configuration, or {@link SolsticeConstant#NONE} if it cannot be retrieved or encountered an error.
+	 */
+	private String getScreenKey() {
+		try {
+			retrieveConfigurationCommand();
+			if (configResponse.has(SolsticeConstant.AUTHENTICATION_CURATION) && configResponse.get(SolsticeConstant.AUTHENTICATION_CURATION).has(SolsticeConstant.SESSION_KEY)) {
+				return configResponse.get(SolsticeConstant.AUTHENTICATION_CURATION).get(SolsticeConstant.SESSION_KEY).asText();
+			}
+		} catch (Exception e) {
+			logger.error("Error when retrieve configuration command", e);
+		}
+		return SolsticeConstant.NONE;
+	}
+
+	/**
+	 * Retrieves and populates active routing information based on the provided statistics map.
+	 *
+	 * @param stats A map containing statistics to be populated with active routing information.
+	 * @throws Exception If there's an error during the retrieval or population process.
+	 */
+	private void retrieveAndPopulateActiveRouting(Map<String, String> stats) throws Exception {
+		if (!checkValidApiToken()) {
+			throw new FailedLoginException("API Token cannot be null or empty, please enter valid password and username field.");
+		}
+		JsonNode currentSessionResponse = retrieveActiveRoutingAPI(SolsticeCommand.GET_CURRENT_SESSION_COMMAND);
+		if (currentSessionResponse != null) {
+			for (ActiveRoutingProperty item : ActiveRoutingProperty.getListByType(SolsticeConstant.SESSION_DATA)) {
+				if (currentSessionResponse.has(item.getValue())) {
+					stats.put(SolsticeConstant.ACTIVE_ROUTING_GROUP + item.getName(), getDefaultValueForNullData(currentSessionResponse.get(item.getValue()).asText()));
+				}
+			}
+		}
+		JsonNode licensingInfoResponse = retrieveActiveRoutingAPI(SolsticeCommand.GET_LICENSING_COMMAND);
+		if (licensingInfoResponse != null) {
+			for (ActiveRoutingProperty item : ActiveRoutingProperty.getListByType(SolsticeConstant.LICENSING)) {
+				if (licensingInfoResponse.has(item.getValue())) {
+					stats.put(SolsticeConstant.ACTIVE_ROUTING_GROUP + item.getName(), getDefaultValueForNullData(licensingInfoResponse.get(item.getValue()).asText()));
+				}
+			}
+		}
+		JsonNode connectionsResponse = retrieveActiveRoutingAPI(SolsticeCommand.GET_CONNECTIONS_COMMAND);
+		if (connectionsResponse != null && connectionsResponse.has("connections")) {
+			JsonNode connectionsNode = connectionsResponse.get("connections");
+			if (connectionsNode != null && connectionsNode.isObject()) {
+				int index = 1;
+				for (JsonNode entry : connectionsNode) {
+					String value = entry.get("name").asText() + " (" + entry.get("ip").asText() + ")";
+					stats.put(SolsticeConstant.ACTIVE_ROUTING_GROUP + "Connection" + index, value);
+					index++;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Retrieves active routing information from an API endpoint.
+	 *
+	 * @param request The request string representing the API endpoint.
+	 * @return A JsonNode object containing the active routing information retrieved from the API,
+	 * or null if an error occurs during the retrieval process.
+	 */
+	private JsonNode retrieveActiveRoutingAPI(String request) {
+		try {
+			return this.doGet(request, JsonNode.class);
+		} catch (Exception e) {
+			logger.error("Error when retrieve Active Routing info with request " + request, e);
+			return null;
+		}
+	}
+
+	/**
+	 * Check API token validation
+	 * If the token expires, we send a request to get a new token
+	 *
+	 * @return boolean
+	 */
+	private boolean checkValidApiToken() throws Exception {
+		if (StringUtils.isNullOrEmpty(token) || System.currentTimeMillis() - tokenExpire >= expiresIn) {
+			token = getToken();
+		}
+		return StringUtils.isNotNullOrEmpty(token);
+	}
+
+	/**
+	 * Retrieves a token using the provided username and password
+	 *
+	 * @return the token string
+	 */
+	private String getToken() throws Exception {
+		String accessToken = SolsticeConstant.EMPTY;
+		tokenExpire = System.currentTimeMillis();
+
+		MultiValueMap<String, String> valueMap = new LinkedMultiValueMap<>();
+		valueMap.add("grant_type", "password");
+		valueMap.add("username", SolsticeConstant.EMPTY);
+		valueMap.add("password", StringUtils.isNotNullOrEmpty(this.getPassword()) ? this.getPassword() : SolsticeConstant.EMPTY);
+		try {
+			JsonNode response = this.doPost(SolsticeCommand.AUTHENTICATION_COMMAND, valueMap, JsonNode.class);
+			if (response != null && response.has(SolsticeConstant.ACCESS_TOKEN)) {
+				accessToken = response.get(SolsticeConstant.ACCESS_TOKEN).asText();
+			}
+		} catch (Exception e) {
+			throw new FailedLoginException("Failed to retrieve an access token for account with from username and password. Please username id and password");
+		}
+		return accessToken;
 	}
 
 	/**
@@ -740,6 +929,11 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 					case SERVER_VERSION:
 						stats.put(propertyName, cutStringBeforeSecondDot(value));
 						break;
+					case KEY:
+						if (SolsticeConstant.TRUE.equals(localCacheMapOfPropertyNameAndValue.get(SolsticePropertiesList.SCREEN_KEY.getName()))) {
+							stats.put(propertyName, value);
+						}
+						break;
 					default:
 						stats.put(propertyName, value);
 				}
@@ -785,7 +979,7 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 			if (StringUtils.isNotNullOrEmpty(this.getPassword())) {
 				params.put(SolsticeConstant.PASSWORD, this.getPassword());
 			}
-			JsonNode response = this.doPost(SolsticeCommand.SET_DEFAULT_BACKGROUND, params, JsonNode.class);
+			JsonNode response = this.doPost(String.format(SolsticeCommand.SET_DEFAULT_BACKGROUND, this.getHost()), params, JsonNode.class);
 			if (!isSuccessResponse(response)) {
 				throw new IllegalArgumentException("Can't control property SetDefaultBackground. The device has responded with an error.");
 			}
@@ -799,12 +993,11 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 * This method sends a POST request with the JSON 'rootNode' to the API endpoint representing the quick connect action command.
 	 *
 	 * @param rootNode The JSON 'rootNode' containing the quick connect action command details.
-	 * @throws Exception If an error occurs during the POST request or JSON parsing.
 	 * @throws IllegalArgumentException If the device responds with an error message.
 	 */
 	private void sendCommandClientQuickConnectAction(JsonNode rootNode) {
 		try {
-			JsonNode response = this.doPost(SolsticeCommand.CONFIG_COMMAND, rootNode, JsonNode.class);
+			JsonNode response = this.doPost(String.format(SolsticeCommand.CONFIG_COMMAND, this.getHost()), rootNode, JsonNode.class);
 			if (response.has(SolsticeConstant.ERROR)) {
 				throw new IllegalArgumentException(
 						String.format("The device has responded with an error: %s", response.get(SolsticeConstant.ERROR).asText()));
@@ -1163,6 +1356,27 @@ public class SolsticePodGen3Communicator extends RestCommunicator implements Mon
 	 */
 	private boolean convertNumberToBoolean(String value) {
 		return SolsticeConstant.NUMBER_ONE.equals(value);
+	}
+
+	/**
+	 * check value is null or empty
+	 *
+	 * @param value input value
+	 * @return value after checking
+	 */
+	private String getDefaultValueForNullData(String value) {
+		return StringUtils.isNotNullOrEmpty(value) ? uppercaseFirstCharacter(value) : SolsticeConstant.NONE;
+	}
+
+	/**
+	 * capitalize the first character of the string
+	 *
+	 * @param input input string
+	 * @return string after fix
+	 */
+	private String uppercaseFirstCharacter(String input) {
+		char firstChar = input.charAt(0);
+		return Character.toUpperCase(firstChar) + input.substring(1);
 	}
 
 	/**
